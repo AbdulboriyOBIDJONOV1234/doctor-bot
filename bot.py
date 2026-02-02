@@ -161,9 +161,9 @@ def generate_time_slots():
 # Command Handlers
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start conversation and ask for language"""
-    user_id = str(update.effective_user.id)
+    user_id = update.effective_user.id
     # Check if user is doctor
-    if user_id == DOCTOR_ID:
+    if str(user_id) == DOCTOR_ID:
         return await doctor_menu(update, context)
 
     # Check if the patient is already registered
@@ -186,7 +186,7 @@ async def doctor_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show doctor's main menu with reply buttons."""
     keyboard = [
         ["📅 Bugungi qabullar", "📋 Barcha qabullar"],
-        ["📊 Statistika", " Reklama yuborish"],
+        ["📊 Statistika", "📢 Reklama yuborish"],
         ["🆘 Yordam"]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
