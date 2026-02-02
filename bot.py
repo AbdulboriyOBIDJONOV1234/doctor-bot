@@ -8,6 +8,7 @@ import json
 import logging
 import threading
 import sqlite3
+from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from datetime import datetime, timedelta
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
@@ -64,10 +65,15 @@ def init_db():
         conn.commit()
     conn.close()
 
-def get_db_connection():
+@contextmanager
+def get_db():
+    """Context manager for database connection"""
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 # Conversation states
 (LANGUAGE, FIRST_NAME, LAST_NAME, AGE, PHONE, 
@@ -186,23 +192,25 @@ def generate_dates():
 
 def generate_time_slots():
     """Generate available time slots"""
-    conn = get_db_connection()
-    rows = conn.execute("SELECT time FROM time_slots ORDER BY time").fetchall()
-    conn.close()
+    with get_db() as conn:
+        rows = conn.execute("SELECT time FROM time_slots ORDER BY time").fetchall()
     return [row['time'] for row in rows]
 
 # Command Handlers
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start conversation and ask for language"""
     user_id = update.effective_user.id
+    # Show typing action to indicate responsiveness
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+    
     # Check if user is doctor
     if str(user_id) == DOCTOR_ID:
         return await doctor_menu(update, context)
 
     # Check if the patient is already registered
-    conn = get_db_connection()
-    patient = conn.execute("SELECT * FROM patients WHERE user_id = ?", (str(user_id),)).fetchone()
-    conn.close()
+    with get_db() as conn:
+        patient = conn.execute("SELECT * FROM patients WHERE user_id = ?", (str(user_id),)).fetchone()
+    
     if patient:
         return await patient_menu(update, context)
 
@@ -277,9 +285,9 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def all_pending_appointments(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Shows all appointments to the doctor."""
-    conn = get_db_connection()
-    all_apts = conn.execute("SELECT * FROM appointments ORDER BY date DESC, time DESC").fetchall()
-    conn.close()
+    with get_db() as conn:
+        all_apts = conn.execute("SELECT * FROM appointments ORDER BY date DESC, time DESC").fetchall()
+        # Fetch patient details inside the loop or join tables. For simplicity, keeping separate queries but safe.
     
     if not all_apts:
         await update.message.reply_text("Hozircha qabullar yo'q.")
@@ -294,9 +302,8 @@ async def all_pending_appointments(update: Update, context: ContextTypes.DEFAULT
             status_icon = status_emojis.get(apt['status'], '❓')
             # Fetch patient details for name if needed, but we stored names in appointments or patients table.
             # For simplicity, we'll query patient info
-            conn = get_db_connection()
-            patient = conn.execute("SELECT * FROM patients WHERE user_id = ?", (apt['user_id'],)).fetchone()
-            conn.close()
+            with get_db() as conn:
+                patient = conn.execute("SELECT * FROM patients WHERE user_id = ?", (apt['user_id'],)).fetchone()
             
             first_name = patient['first_name'] if patient else "Noma'lum"
             last_name = patient['last_name'] if patient else ""
@@ -557,40 +564,38 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
     
     # Save to database
-    conn = get_db_connection()
-    
-    # Upsert patient
-    conn.execute("""
-        INSERT OR REPLACE INTO patients (user_id, username, first_name, last_name, age, phone, location, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        str(update.effective_user.id),
-        update.effective_user.username,
-        context.user_data['first_name'],
-        context.user_data['last_name'],
-        context.user_data['age'],
-        context.user_data['phone'],
-        context.user_data['location'],
-        datetime.now().isoformat()
-    ))
-    
-    # Insert appointment
-    cursor = conn.execute("""
-        INSERT INTO appointments (user_id, complaint, urgency, date, time, status, files, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        str(update.effective_user.id),
-        context.user_data['complaint'],
-        context.user_data.get('urgency', 'ROUTINE'),
-        context.user_data['appointment_date'],
-        context.user_data['appointment_time'],
-        'PENDING',
-        json.dumps(context.user_data.get('files', [])),
-        datetime.now().isoformat()
-    ))
-    appointment_id = cursor.lastrowid
-    conn.commit()
-    conn.close()
+    with get_db() as conn:
+        # Upsert patient
+        conn.execute("""
+            INSERT OR REPLACE INTO patients (user_id, username, first_name, last_name, age, phone, location, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            str(update.effective_user.id),
+            update.effective_user.username,
+            context.user_data['first_name'],
+            context.user_data['last_name'],
+            context.user_data['age'],
+            context.user_data['phone'],
+            context.user_data['location'],
+            datetime.now().isoformat()
+        ))
+        
+        # Insert appointment
+        cursor = conn.execute("""
+            INSERT INTO appointments (user_id, complaint, urgency, date, time, status, files, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            str(update.effective_user.id),
+            context.user_data['complaint'],
+            context.user_data.get('urgency', 'ROUTINE'),
+            context.user_data['appointment_date'],
+            context.user_data['appointment_time'],
+            'PENDING',
+            json.dumps(context.user_data.get('files', [])),
+            datetime.now().isoformat()
+        ))
+        appointment_id = cursor.lastrowid
+        conn.commit()
     
     # Prepare data for notification
     patient_data = context.user_data.copy()
@@ -612,7 +617,7 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text(confirmation_msg)
     
     # Show patient main menu
-    await patient_menu(query.message, context)
+    await patient_menu(update, context)
     
     return ConversationHandler.END
 
@@ -631,58 +636,56 @@ async def doctor_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except (IndexError, ValueError):
         return
 
-    conn = get_db_connection()
-    appointment = conn.execute("SELECT * FROM appointments WHERE id = ?", (apt_id,)).fetchone()
-    
-    if not appointment:
-        conn.close()
-        await query.edit_message_text("⚠️ Bu qabul ma'lumotlari topilmadi.")
-        return
+    with get_db() as conn:
+        appointment = conn.execute("SELECT * FROM appointments WHERE id = ?", (apt_id,)).fetchone()
+        
+        if not appointment:
+            await query.edit_message_text("⚠️ Bu qabul ma'lumotlari topilmadi.")
+            return
 
-    patient_id = int(appointment['user_id'])
-    original_text = query.message.text_html if query.message.text_html else query.message.text
-    
-    if action == "accept":
-        conn.execute("UPDATE appointments SET status = 'CONFIRMED' WHERE id = ?", (apt_id,))
-        conn.commit()
+        patient_id = int(appointment['user_id'])
+        original_text = query.message.text_html if query.message.text_html else query.message.text
         
-        # Message to patient
-        patient_msg = (
-            "✅ <b>Qabulingiz tasdiqlandi!</b>\n\n"
-            "Doktor qabulingizni tasdiqladi. Belgilangan vaqtingizga kelishingiz mumkin.\n\n"
-            "📍 <b>Manzil:</b> Farg’ona shaxar Oybek ko’chasi 8G uy\n"
-            "🗺 <b>Lokatsiya:</b> https://maps.app.goo.gl/5GL8XAuYbihEkNnN9"
-        )
-        
-        try:
-            await context.bot.send_message(chat_id=patient_id, text=patient_msg, parse_mode='HTML')
-            # Send actual location point
-            await context.bot.send_location(chat_id=patient_id, latitude=40.3717652, longitude=71.7880633)
-        except Exception as e:
-            logger.error(f"Failed to send confirmation to patient {patient_id}: {e}")
+        if action == "accept":
+            conn.execute("UPDATE appointments SET status = 'CONFIRMED' WHERE id = ?", (apt_id,))
+            conn.commit()
             
-        # Update doctor's message but KEEP info
-        await query.edit_message_text(
-            text=f"{original_text}\n\n✅ <b>QABUL TASDIQLANDI</b>",
-            parse_mode='HTML',
-            reply_markup=None
-        )
+            # Message to patient
+            patient_msg = (
+                "✅ <b>Qabulingiz tasdiqlandi!</b>\n\n"
+                "Doktor qabulingizni tasdiqladi. Belgilangan vaqtingizga kelishingiz mumkin.\n\n"
+                "📍 <b>Manzil:</b> Farg’ona shaxar Oybek ko’chasi 8G uy\n"
+                "🗺 <b>Lokatsiya:</b> https://maps.app.goo.gl/5GL8XAuYbihEkNnN9"
+            )
+            
+            try:
+                await context.bot.send_message(chat_id=patient_id, text=patient_msg, parse_mode='HTML')
+                # Send actual location point
+                await context.bot.send_location(chat_id=patient_id, latitude=40.3717652, longitude=71.7880633)
+            except Exception as e:
+                logger.error(f"Failed to send confirmation to patient {patient_id}: {e}")
+                
+            # Update doctor's message but KEEP info
+            await query.edit_message_text(
+                text=f"{original_text}\n\n✅ <b>QABUL TASDIQLANDI</b>",
+                parse_mode='HTML',
+                reply_markup=None
+            )
 
-    elif action == "reject":
-        # Ask for reason instead of rejecting immediately
-        doctor_states[update.effective_user.id] = {
-            'action': 'reject_reason',
-            'apt_id': apt_id,
-            'message_id': query.message.message_id,
-            'original_text': original_text
-        }
-        
-        await query.edit_message_text(
-            text=f"{original_text}\n\n✍️ <b>Iltimos, rad etish sababini yozing:</b>",
-            parse_mode='HTML',
-            reply_markup=None
-        )
-    conn.close()
+        elif action == "reject":
+            # Ask for reason instead of rejecting immediately
+            doctor_states[update.effective_user.id] = {
+                'action': 'reject_reason',
+                'apt_id': apt_id,
+                'message_id': query.message.message_id,
+                'original_text': original_text
+            }
+            
+            await query.edit_message_text(
+                text=f"{original_text}\n\n✍️ <b>Iltimos, rad etish sababini yozing:</b>",
+                parse_mode='HTML',
+                reply_markup=None
+            )
 
 async def notify_doctor_new_patient(context, patient_data):
     """Send new patient notification to doctor"""
@@ -778,9 +781,8 @@ async def my_appointments(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     lang = context.user_data.get('language', 'en')
     
-    conn = get_db_connection()
-    user_appointments = conn.execute("SELECT * FROM appointments WHERE user_id = ? ORDER BY id DESC", (str(user_id),)).fetchall()
-    conn.close()
+    with get_db() as conn:
+        user_appointments = conn.execute("SELECT * FROM appointments WHERE user_id = ? ORDER BY id DESC", (str(user_id),)).fetchall()
     
     if not user_appointments:
         await update.message.reply_text("📭 You have no appointments yet.")
@@ -807,40 +809,38 @@ async def emergency_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cancel_booking_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel pending or confirmed appointments"""
     user_id = update.effective_user.id
-    conn = get_db_connection()
-    active_apts = conn.execute("SELECT * FROM appointments WHERE user_id = ? AND status IN ('PENDING', 'CONFIRMED')", (str(user_id),)).fetchall()
-    
-    if not active_apts:
-        conn.close()
-        await update.message.reply_text("❌ Bekor qilish uchun faol (kutilayotgan yoki tasdiqlangan) qabullar topilmadi.")
-        return
+    with get_db() as conn:
+        active_apts = conn.execute("SELECT * FROM appointments WHERE user_id = ? AND status IN ('PENDING', 'CONFIRMED')", (str(user_id),)).fetchall()
+        
+        if not active_apts:
+            await update.message.reply_text("❌ Bekor qilish uchun faol (kutilayotgan yoki tasdiqlangan) qabullar topilmadi.")
+            return
 
-    # Cancel them
-    for apt in active_apts:
-        old_status = apt['status']
-        conn.execute("UPDATE appointments SET status = 'CANCELLED' WHERE id = ?", (apt['id'],))
-        
-        # Get patient info for notification
-        patient = conn.execute("SELECT * FROM patients WHERE user_id = ?", (str(user_id),)).fetchone()
-        
-        # Notify doctor
-        username_text = f"@{update.effective_user.username}" if update.effective_user.username else "Mavjud emas"
-        status_text = "Tasdiqlangan" if old_status == 'CONFIRMED' else "Kutilayotgan"
-        
-        msg = (
-            f"❌ <b>BEMOR QABULNI BEKOR QILDI</b>\n\n"
-            f"🆔 ID: #{apt['id']}\n"
-            f"👤 Bemor: {patient['first_name']} {patient['last_name']} ({username_text})\n"
-            f"📅 Sana: {apt['date']} {apt['time']}\n"
-            f"ℹ️ Holati: {status_text}"
-        )
-        try:
-            await context.bot.send_message(chat_id=DOCTOR_ID, text=msg, parse_mode='HTML')
-        except Exception as e:
-            logger.error(f"Failed to notify doctor of cancellation: {e}")
+        # Cancel them
+        for apt in active_apts:
+            old_status = apt['status']
+            conn.execute("UPDATE appointments SET status = 'CANCELLED' WHERE id = ?", (apt['id'],))
+            
+            # Get patient info for notification
+            patient = conn.execute("SELECT * FROM patients WHERE user_id = ?", (str(user_id),)).fetchone()
+            
+            # Notify doctor
+            username_text = f"@{update.effective_user.username}" if update.effective_user.username else "Mavjud emas"
+            status_text = "Tasdiqlangan" if old_status == 'CONFIRMED' else "Kutilayotgan"
+            
+            msg = (
+                f"❌ <b>BEMOR QABULNI BEKOR QILDI</b>\n\n"
+                f"🆔 ID: #{apt['id']}\n"
+                f"👤 Bemor: {patient['first_name']} {patient['last_name']} ({username_text})\n"
+                f"📅 Sana: {apt['date']} {apt['time']}\n"
+                f"ℹ️ Holati: {status_text}"
+            )
+            try:
+                await context.bot.send_message(chat_id=DOCTOR_ID, text=msg, parse_mode='HTML')
+            except Exception as e:
+                logger.error(f"Failed to notify doctor of cancellation: {e}")
 
-    conn.commit()
-    conn.close()
+        conn.commit()
     await update.message.reply_text("✅ Sizning qabulingiz bekor qilindi va doktor xabardor qilindi.")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -870,9 +870,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cancel_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Cancel the conversation and check for active appointments"""
     user_id = update.effective_user.id
-    conn = get_db_connection()
-    active_apt = conn.execute("SELECT 1 FROM appointments WHERE user_id = ? AND status IN ('PENDING', 'CONFIRMED')", (str(user_id),)).fetchone()
-    conn.close()
+    with get_db() as conn:
+        active_apt = conn.execute("SELECT 1 FROM appointments WHERE user_id = ? AND status IN ('PENDING', 'CONFIRMED')", (str(user_id),)).fetchone()
     
     if active_apt:
         await cancel_booking_command(update, context)
@@ -885,98 +884,96 @@ async def cancel_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def check_reminders(context: ContextTypes.DEFAULT_TYPE):
     """Check for upcoming appointments and send reminders"""
     now = datetime.now()
-    conn = get_db_connection()
-    
-    # Get confirmed appointments
-    apts = conn.execute("SELECT * FROM appointments WHERE status = 'CONFIRMED'").fetchall()
-    
-    for apt in apts:
-        apt_id = apt['id']
-            
-        try:
-            # Parse appointment datetime
-            apt_dt_str = f"{apt['date']} {apt['time']}"
-            apt_dt = datetime.strptime(apt_dt_str, "%Y-%m-%d %H:%M")
-        except ValueError as e:
-            logger.error(f"Date parsing error for apt {apt_id}: {e}")
-            continue
-            
-        # 0. Confirmation Request (2 hours before)
-        if not apt['confirmation_sent']:
-            time_remaining = apt_dt - now
-            # Send between 1 hour and 2.5 hours before (targeting ~2 hours)
-            if timedelta(minutes=65) < time_remaining <= timedelta(minutes=150):
-                user_id = apt['user_id']
-                patient = conn.execute("SELECT first_name FROM patients WHERE user_id=?", (user_id,)).fetchone()
-                first_name = patient['first_name'] if patient else "Bemor"
-                msg = (
-                    f"👋 Hurmatli {first_name},\n"
-                    f"Sizning qabulingizga 2 soat vaqt qoldi.\n\n"
-                    f"📅 Vaqt: {apt['time']}\n"
-                    f"Kelishingizni tasdiqlaysizmi?"
-                )
-                keyboard = [
-                    [
-                        InlineKeyboardButton("✅ Ha, boraman", callback_data=f"confirm_visit_yes_{apt_id}"),
-                        InlineKeyboardButton("❌ Yo'q, bekor qilaman", callback_data=f"confirm_visit_no_{apt_id}")
+    with get_db() as conn:
+        # Get confirmed appointments
+        apts = conn.execute("SELECT * FROM appointments WHERE status = 'CONFIRMED'").fetchall()
+        
+        for apt in apts:
+            apt_id = apt['id']
+                
+            try:
+                # Parse appointment datetime
+                apt_dt_str = f"{apt['date']} {apt['time']}"
+                apt_dt = datetime.strptime(apt_dt_str, "%Y-%m-%d %H:%M")
+            except ValueError as e:
+                logger.error(f"Date parsing error for apt {apt_id}: {e}")
+                continue
+                
+            # 0. Confirmation Request (2 hours before)
+            if not apt['confirmation_sent']:
+                time_remaining = apt_dt - now
+                # Send between 1 hour and 2.5 hours before (targeting ~2 hours)
+                if timedelta(minutes=65) < time_remaining <= timedelta(minutes=150):
+                    user_id = apt['user_id']
+                    patient = conn.execute("SELECT first_name FROM patients WHERE user_id=?", (user_id,)).fetchone()
+                    first_name = patient['first_name'] if patient else "Bemor"
+                    msg = (
+                        f"👋 Hurmatli {first_name},\n"
+                        f"Sizning qabulingizga 2 soat vaqt qoldi.\n\n"
+                        f"📅 Vaqt: {apt['time']}\n"
+                        f"Kelishingizni tasdiqlaysizmi?"
+                    )
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("✅ Ha, boraman", callback_data=f"confirm_visit_yes_{apt_id}"),
+                            InlineKeyboardButton("❌ Yo'q, bekor qilaman", callback_data=f"confirm_visit_no_{apt_id}")
+                        ]
                     ]
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                try:
-                    await context.bot.send_message(chat_id=user_id, text=msg, reply_markup=reply_markup)
-                    conn.execute("UPDATE appointments SET confirmation_sent = 1 WHERE id = ?", (apt_id,))
-                except Exception as e:
-                    logger.error(f"Failed to send confirmation request to {user_id}: {e}")
+                    reply_markup = InlineKeyboardMarkup(keyboard)
+                    try:
+                        await context.bot.send_message(chat_id=user_id, text=msg, reply_markup=reply_markup)
+                        conn.execute("UPDATE appointments SET confirmation_sent = 1 WHERE id = ?", (apt_id,))
+                    except Exception as e:
+                        logger.error(f"Failed to send confirmation request to {user_id}: {e}")
 
-        # 1. Reminder Logic (1 hour before)
-        if not apt['reminded_1h']:
-            time_remaining = apt_dt - now
-            if timedelta(minutes=0) < time_remaining <= timedelta(minutes=60):
-                user_id = apt['user_id']
-                patient = conn.execute("SELECT first_name FROM patients WHERE user_id=?", (user_id,)).fetchone()
-                first_name = patient['first_name'] if patient else "Bemor"
-                msg = (
-                    f"⏰ <b>ESLATMA!</b>\n\n"
-                    f"Hurmatli {first_name},\n"
-                    f"Sizning qabulingizga 1 soat vaqt qoldi.\n\n"
-                    f"📅 Vaqt: {apt['time']}\n"
-                    f"📍 Manzil: Farg’ona shaxar Oybek ko’chasi 8G uy\n"
-                    f"🗺 Lokatsiya: https://maps.app.goo.gl/5GL8XAuYbihEkNnN9"
-                )
-                try:
-                    await context.bot.send_message(chat_id=user_id, text=msg, parse_mode='HTML')
-                    conn.execute("UPDATE appointments SET reminded_1h = 1 WHERE id = ?", (apt_id,))
-                except Exception as e:
-                    logger.error(f"Failed to send reminder to {user_id}: {e}")
+            # 1. Reminder Logic (1 hour before)
+            if not apt['reminded_1h']:
+                time_remaining = apt_dt - now
+                if timedelta(minutes=0) < time_remaining <= timedelta(minutes=60):
+                    user_id = apt['user_id']
+                    patient = conn.execute("SELECT first_name FROM patients WHERE user_id=?", (user_id,)).fetchone()
+                    first_name = patient['first_name'] if patient else "Bemor"
+                    msg = (
+                        f"⏰ <b>ESLATMA!</b>\n\n"
+                        f"Hurmatli {first_name},\n"
+                        f"Sizning qabulingizga 1 soat vaqt qoldi.\n\n"
+                        f"📅 Vaqt: {apt['time']}\n"
+                        f"📍 Manzil: Farg’ona shaxar Oybek ko’chasi 8G uy\n"
+                        f"🗺 Lokatsiya: https://maps.app.goo.gl/5GL8XAuYbihEkNnN9"
+                    )
+                    try:
+                        await context.bot.send_message(chat_id=user_id, text=msg, parse_mode='HTML')
+                        conn.execute("UPDATE appointments SET reminded_1h = 1 WHERE id = ?", (apt_id,))
+                    except Exception as e:
+                        logger.error(f"Failed to send reminder to {user_id}: {e}")
 
-        # 2. Follow-up Logic (2 hours after appointment)
-        if not apt['followup_sent']:
-            time_passed = now - apt_dt
-            if time_passed >= timedelta(hours=2):
-                user_id = apt['user_id']
-                patient = conn.execute("SELECT first_name FROM patients WHERE user_id=?", (user_id,)).fetchone()
-                first_name = patient['first_name'] if patient else "Bemor"
-                msg = (
-                    f"👋 Assalomu alaykum, {first_name}!\n\n"
-                    f"Bugun shifokor qabulida bo'ldingiz.\n"
-                    f"Hozir ahvolingiz qanday? Iltimos, baholang:"
-                )
-                keyboard = [
-                    [
-                        InlineKeyboardButton("🟢 Yaxshi", callback_data=f"feedback_good_{apt_id}"),
-                        InlineKeyboardButton("🟡 O'rtacha", callback_data=f"feedback_ok_{apt_id}"),
-                        InlineKeyboardButton("🔴 Yomon", callback_data=f"feedback_bad_{apt_id}")
+            # 2. Follow-up Logic (2 hours after appointment)
+            if not apt['followup_sent']:
+                time_passed = now - apt_dt
+                if time_passed >= timedelta(hours=2):
+                    user_id = apt['user_id']
+                    patient = conn.execute("SELECT first_name FROM patients WHERE user_id=?", (user_id,)).fetchone()
+                    first_name = patient['first_name'] if patient else "Bemor"
+                    msg = (
+                        f"👋 Assalomu alaykum, {first_name}!\n\n"
+                        f"Bugun shifokor qabulida bo'ldingiz.\n"
+                        f"Hozir ahvolingiz qanday? Iltimos, baholang:"
+                    )
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("🟢 Yaxshi", callback_data=f"feedback_good_{apt_id}"),
+                            InlineKeyboardButton("🟡 O'rtacha", callback_data=f"feedback_ok_{apt_id}"),
+                            InlineKeyboardButton("🔴 Yomon", callback_data=f"feedback_bad_{apt_id}")
+                        ]
                     ]
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
-                try:
-                    await context.bot.send_message(chat_id=user_id, text=msg, reply_markup=reply_markup)
-                    conn.execute("UPDATE appointments SET followup_sent = 1 WHERE id = ?", (apt_id,))
-                except Exception as e:
-                    logger.error(f"Failed to send follow-up to {user_id}: {e}")
-    
-    conn.commit()
-    conn.close()
+                    reply_markup = InlineKeyboardMarkup(keyboard)
+                    try:
+                        await context.bot.send_message(chat_id=user_id, text=msg, reply_markup=reply_markup)
+                        conn.execute("UPDATE appointments SET followup_sent = 1 WHERE id = ?", (apt_id,))
+                    except Exception as e:
+                        logger.error(f"Failed to send follow-up to {user_id}: {e}")
+        
+        conn.commit()
 
 async def today_appointments(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show today's appointments for the doctor"""
@@ -986,32 +983,30 @@ async def today_appointments(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     today = datetime.now().strftime("%Y-%m-%d")
     
-    conn = get_db_connection()
-    today_apts = conn.execute("SELECT * FROM appointments WHERE date = ? AND status IN ('CONFIRMED', 'PENDING') ORDER BY time", (today,)).fetchall()
-    
-    if not today_apts:
-        conn.close()
-        await update.message.reply_text(f"📅 {today} sanasi uchun qabullar mavjud emas.")
-        return
+    with get_db() as conn:
+        today_apts = conn.execute("SELECT * FROM appointments WHERE date = ? AND status IN ('CONFIRMED', 'PENDING') ORDER BY time", (today,)).fetchall()
+        
+        if not today_apts:
+            await update.message.reply_text(f"📅 {today} sanasi uchun qabullar mavjud emas.")
+            return
 
-    message = f"📅 <b>Bugungi qabullar ({today}):</b>\n\n"
-    for apt in today_apts:
-        status_icon = "✅" if apt['status'] == 'CONFIRMED' else "⏳"
-        
-        patient = conn.execute("SELECT * FROM patients WHERE user_id = ?", (apt['user_id'],)).fetchone()
-        first_name = patient['first_name'] if patient else "Noma'lum"
-        last_name = patient['last_name'] if patient else ""
-        phone = patient['phone'] if patient else ""
-        username = f"@{patient['username']}" if patient and patient['username'] else ""
-        
-        message += (
-            f"{status_icon} <b>{apt['time']}</b> - {first_name} {last_name}\n"
-            f"📞 {phone} {username}\n"
-            f"🩺 {apt['complaint'][:50]}...\n"
-            f"🆔 #{apt['id']}\n\n"
-        )
+        message = f"📅 <b>Bugungi qabullar ({today}):</b>\n\n"
+        for apt in today_apts:
+            status_icon = "✅" if apt['status'] == 'CONFIRMED' else "⏳"
+            
+            patient = conn.execute("SELECT * FROM patients WHERE user_id = ?", (apt['user_id'],)).fetchone()
+            first_name = patient['first_name'] if patient else "Noma'lum"
+            last_name = patient['last_name'] if patient else ""
+            phone = patient['phone'] if patient else ""
+            username = f"@{patient['username']}" if patient and patient['username'] else ""
+            
+            message += (
+                f"{status_icon} <b>{apt['time']}</b> - {first_name} {last_name}\n"
+                f"📞 {phone} {username}\n"
+                f"🩺 {apt['complaint'][:50]}...\n"
+                f"🆔 #{apt['id']}\n\n"
+            )
     
-    conn.close()
     await update.message.reply_text(message, parse_mode='HTML')
 
 async def feedback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1034,24 +1029,23 @@ async def feedback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif status == "bad":
         await query.edit_message_text("🔴 Tushunarli. Shifokorga bu haqida xabar beramiz.")
         # Notify doctor
-        conn = get_db_connection()
-        apt = conn.execute("SELECT * FROM appointments WHERE id = ?", (apt_id,)).fetchone()
-        if apt:
-            patient = conn.execute("SELECT * FROM patients WHERE user_id = ?", (apt['user_id'],)).fetchone()
-            first_name = patient['first_name'] if patient else "Noma'lum"
-            phone = patient['phone'] if patient else ""
-            doc_msg = (
-                f"⚠️ <b>BEMOR AHVOLI YOMON!</b>\n\n"
-                f"Bemor: {first_name} {patient['last_name']}\n"
-                f"Tel: {phone}\n"
-                f"Qabul ID: #{apt_id}\n\n"
-                f"Bemor qabuldan keyingi so'rovnomada ahvolini 'Yomon' deb baholadi."
-            )
-            try:
-                await context.bot.send_message(chat_id=DOCTOR_ID, text=doc_msg, parse_mode='HTML')
-            except Exception as e:
-                logger.error(f"Failed to notify doctor about feedback: {e}")
-        conn.close()
+        with get_db() as conn:
+            apt = conn.execute("SELECT * FROM appointments WHERE id = ?", (apt_id,)).fetchone()
+            if apt:
+                patient = conn.execute("SELECT * FROM patients WHERE user_id = ?", (apt['user_id'],)).fetchone()
+                first_name = patient['first_name'] if patient else "Noma'lum"
+                phone = patient['phone'] if patient else ""
+                doc_msg = (
+                    f"⚠️ <b>BEMOR AHVOLI YOMON!</b>\n\n"
+                    f"Bemor: {first_name} {patient['last_name']}\n"
+                    f"Tel: {phone}\n"
+                    f"Qabul ID: #{apt_id}\n\n"
+                    f"Bemor qabuldan keyingi so'rovnomada ahvolini 'Yomon' deb baholadi."
+                )
+                try:
+                    await context.bot.send_message(chat_id=DOCTOR_ID, text=doc_msg, parse_mode='HTML')
+                except Exception as e:
+                    logger.error(f"Failed to notify doctor about feedback: {e}")
 
 async def confirm_visit_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle patient confirmation response (Yes/No) before appointment"""
@@ -1069,40 +1063,37 @@ async def confirm_visit_handler(update: Update, context: ContextTypes.DEFAULT_TY
     except (IndexError, ValueError):
         return
     
-    conn = get_db_connection()
-    apt = conn.execute("SELECT * FROM appointments WHERE id = ?", (apt_id,)).fetchone()
-    
-    if not apt:
-        conn.close()
-        await query.edit_message_text("⚠️ Qabul ma'lumotlari topilmadi.")
-        return
+    with get_db() as conn:
+        apt = conn.execute("SELECT * FROM appointments WHERE id = ?", (apt_id,)).fetchone()
+        
+        if not apt:
+            await query.edit_message_text("⚠️ Qabul ma'lumotlari topilmadi.")
+            return
 
-    if action == "yes":
-        conn.execute("UPDATE appointments SET confirmed_by_patient = 1 WHERE id = ?", (apt_id,))
-        await query.edit_message_text(f"✅ Rahmat! Sizni {apt['time']} da kutamiz.")
-    elif action == "no":
-        conn.execute("UPDATE appointments SET status = 'CANCELLED' WHERE id = ?", (apt_id,))
-        await query.edit_message_text("❌ Qabul bekor qilindi.")
-        
-        # Notify doctor
-        patient = conn.execute("SELECT * FROM patients WHERE user_id = ?", (apt['user_id'],)).fetchone()
-        username_text = f"@{patient['username']}" if patient and patient['username'] else "Mavjud emas"
-        first_name = patient['first_name'] if patient else "Noma'lum"
-        
-        msg = f"❌ <b>BEMOR QABULNI BEKOR QILDI (Tasdiqlash so'rovi)</b>\n\nID: #{apt['id']}\nBemor: {first_name} {patient['last_name']} ({username_text})\nSana: {apt['date']} {apt['time']}"
-        try:
-            await context.bot.send_message(chat_id=DOCTOR_ID, text=msg, parse_mode='HTML')
-        except Exception as e:
-            logger.error(f"Failed to notify doctor of cancellation: {e}")
-    conn.commit()
-    conn.close()
+        if action == "yes":
+            conn.execute("UPDATE appointments SET confirmed_by_patient = 1 WHERE id = ?", (apt_id,))
+            await query.edit_message_text(f"✅ Rahmat! Sizni {apt['time']} da kutamiz.")
+        elif action == "no":
+            conn.execute("UPDATE appointments SET status = 'CANCELLED' WHERE id = ?", (apt_id,))
+            await query.edit_message_text("❌ Qabul bekor qilindi.")
+            
+            # Notify doctor
+            patient = conn.execute("SELECT * FROM patients WHERE user_id = ?", (apt['user_id'],)).fetchone()
+            username_text = f"@{patient['username']}" if patient and patient['username'] else "Mavjud emas"
+            first_name = patient['first_name'] if patient else "Noma'lum"
+            
+            msg = f"❌ <b>BEMOR QABULNI BEKOR QILDI (Tasdiqlash so'rovi)</b>\n\nID: #{apt['id']}\nBemor: {first_name} {patient['last_name']} ({username_text})\nSana: {apt['date']} {apt['time']}"
+            try:
+                await context.bot.send_message(chat_id=DOCTOR_ID, text=msg, parse_mode='HTML')
+            except Exception as e:
+                logger.error(f"Failed to notify doctor of cancellation: {e}")
+        conn.commit()
 
 async def start_booking(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start new appointment booking (skip registration if known)"""
     user_id = update.effective_user.id
-    conn = get_db_connection()
-    data = conn.execute("SELECT * FROM patients WHERE user_id = ?", (str(user_id),)).fetchone()
-    conn.close()
+    with get_db() as conn:
+        data = conn.execute("SELECT * FROM patients WHERE user_id = ?", (str(user_id),)).fetchone()
     
     if data:
         # Load data
@@ -1124,12 +1115,11 @@ async def doctor_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if str(update.effective_user.id) != DOCTOR_ID:
         return
 
-    conn = get_db_connection()
-    total_patients = conn.execute("SELECT count(*) FROM patients").fetchone()[0]
-    total_appointments = conn.execute("SELECT count(*) FROM appointments").fetchone()[0]
-    
-    rows = conn.execute("SELECT status, count(*) as count FROM appointments GROUP BY status").fetchall()
-    conn.close()
+    with get_db() as conn:
+        total_patients = conn.execute("SELECT count(*) FROM patients").fetchone()[0]
+        total_appointments = conn.execute("SELECT count(*) FROM appointments").fetchone()[0]
+        
+        rows = conn.execute("SELECT status, count(*) as count FROM appointments GROUP BY status").fetchall()
     
     status_counts = {
         'PENDING': 0,
@@ -1156,9 +1146,8 @@ async def doctor_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def manage_work_hours(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show current work hours and allow editing"""
-    conn = get_db_connection()
-    slots = conn.execute("SELECT time FROM time_slots ORDER BY time").fetchall()
-    conn.close()
+    with get_db() as conn:
+        slots = conn.execute("SELECT time FROM time_slots ORDER BY time").fetchall()
     
     msg = "⚙️ <b>Ish vaqtlarini boshqarish</b>\n\nHozirgi vaqtlar:\n"
     keyboard = []
@@ -1183,23 +1172,21 @@ async def delete_work_hour(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     time_to_delete = query.data.split('_')[2]
     
-    conn = get_db_connection()
-    conn.execute("DELETE FROM time_slots WHERE time = ?", (time_to_delete,))
-    conn.commit()
-    conn.close()
+    with get_db() as conn:
+        conn.execute("DELETE FROM time_slots WHERE time = ?", (time_to_delete,))
+        conn.commit()
     
     await query.edit_message_text(f"✅ {time_to_delete} vaqti o'chirildi.")
 
 async def add_work_hour(update: Update, context: ContextTypes.DEFAULT_TYPE, time_str):
     """Add a new time slot"""
-    conn = get_db_connection()
-    try:
-        conn.execute("INSERT INTO time_slots (time) VALUES (?)", (time_str,))
-        conn.commit()
-        await update.message.reply_text(f"✅ {time_str} vaqti qo'shildi.")
-    except sqlite3.IntegrityError:
-        await update.message.reply_text(f"⚠️ {time_str} vaqti allaqachon mavjud.")
-    conn.close()
+    with get_db() as conn:
+        try:
+            conn.execute("INSERT INTO time_slots (time) VALUES (?)", (time_str,))
+            conn.commit()
+            await update.message.reply_text(f"✅ {time_str} vaqti qo'shildi.")
+        except sqlite3.IntegrityError:
+            await update.message.reply_text(f"⚠️ {time_str} vaqti allaqachon mavjud.")
 
 async def doctor_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle doctor menu text buttons"""
@@ -1236,6 +1223,20 @@ async def patient_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         await history_command(update, context)
     elif text == "📞 Doktor bilan bog'lanish":
         await contact_doctor_command(update, context)
+    else:
+        # AI Chat Fallback
+        await ai_chat_handler(update, context)
+
+async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle chat messages with AI"""
+    user_text = update.message.text
+    # Placeholder for AI logic
+    response = "🤖 <b>AI Yordamchi:</b>\n\nUzr, hozircha men faqat oldindan yozilgan javoblarni bilaman. Tez orada to'liq sun'iy intellekt ishga tushadi!"
+    
+    if "salom" in user_text.lower():
+        response = "🤖 <b>AI Yordamchi:</b>\n\nAssalomu alaykum! Sizga qanday yordam bera olaman?"
+        
+    await update.message.reply_text(response, parse_mode='HTML')
 
 async def doctor_input_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle input from doctor (rejection reasons, broadcasts)"""
@@ -1264,39 +1265,38 @@ async def doctor_input_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         reason = update.message.text
         apt_id = state['apt_id']
         
-        conn = get_db_connection()
-        conn.execute("UPDATE appointments SET status = 'REJECTED', rejection_reason = ? WHERE id = ?", (reason, apt_id))
-        
-        # Get patient ID
-        apt = conn.execute("SELECT user_id FROM appointments WHERE id = ?", (apt_id,)).fetchone()
-        if apt:
-            patient_id = apt['user_id']
+        with get_db() as conn:
+            conn.execute("UPDATE appointments SET status = 'REJECTED', rejection_reason = ? WHERE id = ?", (reason, apt_id))
             
-            # Notify patient
-            patient_msg = (
-                f"❌ <b>Qabul rad etildi</b>\n\n"
-                f"Doktor qabulni rad etdi.\n"
-                f"<b>Sabab:</b> {reason}\n\n"
-                f"Iltimos, boshqa vaqtni tanlang."
-            )
-            try:
-                await context.bot.send_message(chat_id=patient_id, text=patient_msg, parse_mode='HTML')
-            except Exception as e:
-                logger.error(f"Failed to send rejection to patient: {e}")
-
-            # Update doctor message
-            try:
-                await context.bot.edit_message_text(
-                    chat_id=user_id,
-                    message_id=state['message_id'],
-                    text=f"{state['original_text']}\n\n❌ <b>RAD ETILDI</b>\nSabab: {reason}",
-                    parse_mode='HTML'
+            # Get patient ID
+            apt = conn.execute("SELECT user_id FROM appointments WHERE id = ?", (apt_id,)).fetchone()
+            if apt:
+                patient_id = apt['user_id']
+                
+                # Notify patient
+                patient_msg = (
+                    f"❌ <b>Qabul rad etildi</b>\n\n"
+                    f"Doktor qabulni rad etdi.\n"
+                    f"<b>Sabab:</b> {reason}\n\n"
+                    f"Iltimos, boshqa vaqtni tanlang."
                 )
-            except Exception as e:
-                logger.error(f"Failed to edit doctor message: {e}")
-        
-        conn.commit()
-        conn.close()
+                try:
+                    await context.bot.send_message(chat_id=patient_id, text=patient_msg, parse_mode='HTML')
+                except Exception as e:
+                    logger.error(f"Failed to send rejection to patient: {e}")
+
+                # Update doctor message
+                try:
+                    await context.bot.edit_message_text(
+                        chat_id=user_id,
+                        message_id=state['message_id'],
+                        text=f"{state['original_text']}\n\n❌ <b>RAD ETILDI</b>\nSabab: {reason}",
+                        parse_mode='HTML'
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to edit doctor message: {e}")
+            
+            conn.commit()
         
         await update.message.reply_text("✅ Rad etish sababi yuborildi va bemor xabardor qilindi.")
         del doctor_states[user_id]
@@ -1305,20 +1305,19 @@ async def doctor_input_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         count = 0
         status_msg = await update.message.reply_text("⏳ Xabar yuborilmoqda...")
         
-        conn = get_db_connection()
-        patients = conn.execute("SELECT user_id FROM patients").fetchall()
-        conn.close()
+        with get_db() as conn:
+            patients = conn.execute("SELECT user_id FROM patients").fetchall()
         
-        for row in patients:
-            pid = row['user_id']
-            if str(pid) == DOCTOR_ID:
-                continue
-            try:
-                # Copy the message (text, photo, video, etc.)
-                await update.message.copy(chat_id=pid)
-                count += 1
-            except Exception as e:
-                logger.error(f"Failed to broadcast to {pid}: {e}")
+            for row in patients:
+                pid = row['user_id']
+                if str(pid) == DOCTOR_ID:
+                    continue
+                try:
+                    # Copy the message (text, photo, video, etc.)
+                    await update.message.copy(chat_id=pid)
+                    count += 1
+                except Exception as e:
+                    logger.error(f"Failed to broadcast to {pid}: {e}")
         
         await context.bot.delete_message(chat_id=user_id, message_id=status_msg.message_id)
         await update.message.reply_text(f"✅ Xabar {count} ta bemorga muvaffaqiyatli yuborildi.")
@@ -1391,8 +1390,9 @@ def main():
     application.add_handler(CallbackQueryHandler(doctor_action, pattern="^admin_"))
     application.add_handler(CallbackQueryHandler(feedback_handler, pattern="^feedback_"))
     application.add_handler(CallbackQueryHandler(confirm_visit_handler, pattern="^confirm_visit_"))
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^(📅 Bugungi qabullar|📋 Barcha qabullar|📊 Statistika|📢 Reklama yuborish|🆘 Yordam)$"), doctor_menu_handler))
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^(📅 Bugungi qabullar|📋 Barcha qabullar|📊 Statistika|📢 Reklama yuborish|⚙️ Ish vaqti|🆘 Yordam)$"), doctor_menu_handler))
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^(📅 Mening qabullarim|📔 Oldingi qabullarim|📞 Doktor bilan bog'lanish)$"), patient_menu_handler))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, patient_menu_handler)) # Fallback for AI
     application.add_handler(MessageHandler((filters.TEXT | filters.PHOTO | filters.VIDEO | filters.Document.ALL) & ~filters.COMMAND, doctor_input_handler))
     
     # Start bot
