@@ -201,11 +201,15 @@ async def patient_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     
-    msg_text = "📱 Asosiy menyu:"
+    msg_text = (
+        "📱 <b>Asosiy menyu:</b>\n\n"
+        "📢 Yangiliklardan xabardor bo'lib turish uchun guruhimizga qo'shiling:\n"
+        "https://t.me/DrNeuropathology07"
+    )
     if update.callback_query:
-        await update.callback_query.message.reply_text(msg_text, reply_markup=reply_markup)
+        await update.callback_query.message.reply_text(msg_text, reply_markup=reply_markup, parse_mode='HTML')
     else:
-        await update.message.reply_text(msg_text, reply_markup=reply_markup)
+        await update.message.reply_text(msg_text, reply_markup=reply_markup, parse_mode='HTML')
 
     return ConversationHandler.END
 
@@ -234,23 +238,28 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await doctor_help_command(query.message, context)
 
 async def all_pending_appointments(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Shows all active appointments (Pending + Confirmed) to the doctor."""
-    # Filter for PENDING and CONFIRMED
-    active_apts = [apt for apt in appointments_db.values() if apt['status'] in ['PENDING', 'CONFIRMED']]
+    """Shows all appointments to the doctor."""
+    # Show ALL appointments (active + history)
+    all_apts = list(appointments_db.values())
     
-    if not active_apts:
-        await update.reply_text("Hozircha faol qabullar yo'q.")
+    if not all_apts:
+        await update.message.reply_text("Hozircha qabullar yo'q.")
     else:
-        # Sort by date and time
-        active_apts.sort(key=lambda x: (x['date'], x['time']))
+        # Sort by date and time (newest first)
+        all_apts.sort(key=lambda x: (x['date'], x['time']), reverse=True)
         
-        message = f"📋 <b>Barcha faol qabullar ({len(active_apts)} ta):</b>\n\n"
-        for apt in active_apts:
-            status_icon = "✅" if apt['status'] == 'CONFIRMED' else "⏳"
+        message = f"📋 <b>Barcha qabullar ({len(all_apts)} ta):</b>\n\n"
+        for apt in all_apts:
+            status_emojis = {
+                'PENDING': '⏳', 'CONFIRMED': '✅', 
+                'CANCELLED': '❌', 'COMPLETED': '✔️', 
+                'REJECTED': '🚫'
+            }
+            status_icon = status_emojis.get(apt['status'], '❓')
             username = f"@{apt['username']}" if apt.get('username') else ""
             
             message += (
-                f"{status_icon} <b>{apt['date']} {apt['time']}</b>\n"
+                f"{status_icon} <b>{apt['date']} {apt['time']}</b> ({apt['status']})\n"
                 f"👤 {apt['first_name']} {apt['last_name']}\n"
                 f"📞 {apt['phone']} {username}\n"
                 f"🩺 {apt['complaint'][:50]}...\n"
@@ -260,13 +269,18 @@ async def all_pending_appointments(update: Update, context: ContextTypes.DEFAULT
         
         if len(message) > 4096:
             for x in range(0, len(message), 4096):
-                await update.reply_text(message[x:x+4096], parse_mode='HTML')
+                await update.message.reply_text(message[x:x+4096], parse_mode='HTML')
         else:
-            await update.reply_text(message, parse_mode='HTML')
+            await update.message.reply_text(message, parse_mode='HTML')
 
 async def doctor_help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Shows help for doctor."""
-    await update.reply_text("Bot bo'yicha savollar bo'lsa @Abdulboriy7700 ga murojaat qiling.")
+    await update.message.reply_text(
+        "🛠 <b>Texnik yordam:</b>\n\n"
+        "Bot bo'yicha texnik nosozliklar kuzatilsa, adminga murojaat qiling:\n"
+        "@Abdulboriy7700",
+        parse_mode='HTML'
+    )
 
 async def contact_doctor_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Shows doctor contact info to patient."""
@@ -777,9 +791,17 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(help_text)
 
 async def cancel_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Cancel the conversation"""
-    lang = context.user_data.get('language', 'en')
-    await update.message.reply_text(get_text(lang, 'cancel'))
+    """Cancel the conversation and check for active appointments"""
+    user_id = update.effective_user.id
+    # Check if user has active appointments to cancel
+    active_apts = [apt for apt in appointments_db.values() if apt['user_id'] == user_id and apt['status'] in ['PENDING', 'CONFIRMED']]
+    
+    if active_apts:
+        await cancel_booking_command(update, context)
+    else:
+        lang = context.user_data.get('language', 'en')
+        await update.message.reply_text(get_text(lang, 'cancel'))
+        
     return ConversationHandler.END
 
 async def check_reminders(context: ContextTypes.DEFAULT_TYPE):
