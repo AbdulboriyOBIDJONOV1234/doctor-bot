@@ -292,7 +292,6 @@ async def all_pending_appointments(update: Update, context: ContextTypes.DEFAULT
     """Shows all appointments to the doctor."""
     with get_db() as conn:
         all_apts = conn.execute("SELECT * FROM appointments ORDER BY date DESC, time DESC").fetchall()
-        # Fetch patient details inside the loop or join tables. For simplicity, keeping separate queries but safe.
     
     if not all_apts:
         await update.message.reply_text("Hozircha qabullar yo'q.")
@@ -305,8 +304,7 @@ async def all_pending_appointments(update: Update, context: ContextTypes.DEFAULT
                 'REJECTED': '🚫'
             }
             status_icon = status_emojis.get(apt['status'], '❓')
-            # Fetch patient details for name if needed, but we stored names in appointments or patients table.
-            # For simplicity, we'll query patient info
+            
             with get_db() as conn:
                 patient = conn.execute("SELECT * FROM patients WHERE user_id = ?", (apt['user_id'],)).fetchone()
             
@@ -348,7 +346,7 @@ async def contact_doctor_command(update: Update, context: ContextTypes.DEFAULT_T
 🛠 Texnik yordam:
 @Abdulboriy7700
     """
-    await update.reply_text(help_text)
+    await update.message.reply_text(help_text)
 
 async def language_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Store language and ask for first name"""
@@ -564,10 +562,12 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     lang = context.user_data.get('language', 'en')
     
+    # BU YERDA MUAMMO BOR EDI - "confirm_no" ni tekshirish kerak edi
     if query.data == 'confirm_no':
         await query.edit_message_text(get_text(lang, 'cancel'))
         return ConversationHandler.END
     
+    # AGAR "confirm_yes" BO'LSA, DAVOM ETAMIZ
     # Save to database
     with get_db() as conn:
         # Upsert patient
@@ -659,7 +659,7 @@ async def doctor_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
             patient_msg = (
                 "✅ <b>Qabulingiz tasdiqlandi!</b>\n\n"
                 "Doktor qabulingizni tasdiqladi. Belgilangan vaqtingizga kelishingiz mumkin.\n\n"
-                "📍 <b>Manzil:</b> Farg’ona shaxar Oybek ko’chasi 8G uy\n"
+                "📍 <b>Manzil:</b> Farg'ona shaxar Oybek ko'chasi 8G uy\n"
                 "🗺 <b>Lokatsiya:</b> https://maps.app.goo.gl/5GL8XAuYbihEkNnN9"
             )
             
@@ -705,7 +705,7 @@ async def notify_doctor_new_patient(context, patient_data):
     message = f"""
 🔔 YANGI BEMOR RO'YXATDAN O'TDI
 
-{urgency_emoji.get(patient_data['urgency'], '🟢')} Muhimlik darajasi: {patient_data['urgency']}
+{urgency_emoji.get(patient_data.get('urgency', 'ROUTINE'), '🟢')} Muhimlik darajasi: {patient_data.get('urgency', 'ROUTINE')}
 
 📋 Qabul ID: #{patient_data['id']}
 
@@ -720,8 +720,8 @@ async def notify_doctor_new_patient(context, patient_data):
 {patient_data['complaint']}
 
 📅 So'ralgan vaqt:
-• Sana: {patient_data['date']}
-• Vaqt: {patient_data['time']}
+• Sana: {patient_data.get('appointment_date', 'N/A')}
+• Vaqt: {patient_data.get('appointment_time', 'N/A')}
 
 ⏰ Ro'yxatdan o'tdi: {patient_data['created_at']}
     """
@@ -943,7 +943,7 @@ async def check_reminders(context: ContextTypes.DEFAULT_TYPE):
                         f"Hurmatli {first_name},\n"
                         f"Sizning qabulingizga 1 soat vaqt qoldi.\n\n"
                         f"📅 Vaqt: {apt['time']}\n"
-                        f"📍 Manzil: Farg’ona shaxar Oybek ko’chasi 8G uy\n"
+                        f"📍 Manzil: Farg'ona shaxar Oybek ko'chasi 8G uy\n"
                         f"🗺 Lokatsiya: https://maps.app.goo.gl/5GL8XAuYbihEkNnN9"
                     )
                     try:
@@ -1221,6 +1221,12 @@ async def doctor_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def patient_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle patient menu text buttons"""
+    # Check if doctor is in a state (intercept text input)
+    user_id = update.effective_user.id
+    if str(user_id) == DOCTOR_ID and user_id in doctor_states:
+        await doctor_input_handler(update, context)
+        return
+
     text = update.message.text
     if text == "📅 Mening qabullarim":
         await my_appointments(update, context)
