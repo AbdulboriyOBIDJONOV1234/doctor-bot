@@ -548,7 +548,7 @@ async def doctor_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "✅ <b>Qabulingiz tasdiqlandi!</b>\n\n"
             "Doktor qabulingizni tasdiqladi. Belgilangan vaqtingizga kelishingiz mumkin.\n\n"
             "📍 <b>Manzil:</b> Farg’ona shaxar Oybek ko’chasi 8G uy\n"
-            "🗺 <b>Lokatsiya:</b> https://maps.google.com/?q=40.3717652,71.7880633"
+            "🗺 <b>Lokatsiya:</b> https://maps.app.goo.gl/5GL8XAuYbihEkNnN9"
         )
         
         try:
@@ -800,7 +800,7 @@ async def check_reminders(context: ContextTypes.DEFAULT_TYPE):
                     f"Sizning qabulingizga 1 soat vaqt qoldi.\n\n"
                     f"📅 Vaqt: {apt['time']}\n"
                     f"📍 Manzil: Farg’ona shaxar Oybek ko’chasi 8G uy\n"
-                    f"🗺 Lokatsiya: https://maps.google.com/?q=40.3717652,71.7880633"
+                    f"🗺 Lokatsiya: https://maps.app.goo.gl/5GL8XAuYbihEkNnN9"
                 )
                 try:
                     await context.bot.send_message(chat_id=user_id, text=msg, parse_mode='HTML')
