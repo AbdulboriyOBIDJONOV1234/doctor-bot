@@ -6,6 +6,8 @@ Complete system with patient intake, triage, scheduling, and admin features
 import os
 import json
 import logging
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from datetime import datetime, timedelta
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
 from telegram.ext import (
@@ -17,6 +19,7 @@ from telegram.ext import (
     ContextTypes,
     filters
 )
+from dotenv import load_dotenv
 
 # Enable logging
 logging.basicConfig(
@@ -25,9 +28,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Load environment variables
+load_dotenv()
+
 # Bot Configuration
 DOCTOR_ID = os.getenv("DOCTOR_ID", "8104665298")
-BOT_TOKEN = os.getenv("BOT_TOKEN", "7173294170:AAEvJTWZg-Td8Xeq5SvuEjxmYNBLh_qNq7U")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "7173294170:AAEvJTWZg-Td8Xeq5SvuEjxmYNBLh_qNq7U").strip().replace('"', '').replace("'", "")
 
 # Conversation states
 (LANGUAGE, FIRST_NAME, LAST_NAME, AGE, PHONE, 
@@ -1016,6 +1022,18 @@ async def doctor_input_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text("✅ Rad etish sababi yuborildi va bemor xabardor qilindi.")
         del doctor_states[user_id]
 
+# Render Health Check Server
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is running")
+
+def start_web_server():
+    port = int(os.getenv("PORT", 8080))
+    server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+    server.serve_forever()
+
 async def post_init(application: Application):
     await application.bot.set_my_commands([
         BotCommand("start", "Boshlash"),
@@ -1032,6 +1050,9 @@ async def post_init(application: Application):
 
 def main():
     """Start the bot"""
+    # Start dummy web server for Render
+    threading.Thread(target=start_web_server, daemon=True).start()
+
     # Create application
     application = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
     
