@@ -233,15 +233,35 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await doctor_help_command(query.message, context)
 
 async def all_pending_appointments(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Shows all pending appointments to the doctor."""
-    pending_apts = [apt for apt in appointments_db.values() if apt['status'] == 'PENDING']
-    if not pending_apts:
-        await update.reply_text("Hozircha kutilayotgan qabullar yo'q.")
+    """Shows all active appointments (Pending + Confirmed) to the doctor."""
+    # Filter for PENDING and CONFIRMED
+    active_apts = [apt for apt in appointments_db.values() if apt['status'] in ['PENDING', 'CONFIRMED']]
+    
+    if not active_apts:
+        await update.reply_text("Hozircha faol qabullar yo'q.")
     else:
-        message = f"Jami {len(pending_apts)} ta kutilayotgan qabul bor:\n\n"
-        for apt in pending_apts:
-            message += f"ID: #{apt['id']} - {apt['first_name']} {apt['last_name']} ({apt['date']} {apt['time']})\n"
-        await update.reply_text(message)
+        # Sort by date and time
+        active_apts.sort(key=lambda x: (x['date'], x['time']))
+        
+        message = f"📋 <b>Barcha faol qabullar ({len(active_apts)} ta):</b>\n\n"
+        for apt in active_apts:
+            status_icon = "✅" if apt['status'] == 'CONFIRMED' else "⏳"
+            username = f"@{apt['username']}" if apt.get('username') else ""
+            
+            message += (
+                f"{status_icon} <b>{apt['date']} {apt['time']}</b>\n"
+                f"👤 {apt['first_name']} {apt['last_name']}\n"
+                f"📞 {apt['phone']} {username}\n"
+                f"🩺 {apt['complaint'][:50]}...\n"
+                f"🆔 #{apt['id']}\n"
+                f"-------------------\n"
+            )
+        
+        if len(message) > 4096:
+            for x in range(0, len(message), 4096):
+                await update.reply_text(message[x:x+4096], parse_mode='HTML')
+        else:
+            await update.reply_text(message, parse_mode='HTML')
 
 async def doctor_help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Shows help for doctor."""
@@ -699,24 +719,33 @@ async def emergency_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_contact(phone_number="103", first_name="Tez", last_name="Yordam")
 
 async def cancel_booking_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Cancel pending appointments"""
+    """Cancel pending or confirmed appointments"""
     user_id = update.effective_user.id
-    # Find pending appointments
-    pending_apts = [apt for apt in appointments_db.values() if apt['user_id'] == user_id and apt['status'] == 'PENDING']
+    # Find pending or confirmed appointments
+    active_apts = [apt for apt in appointments_db.values() if apt['user_id'] == user_id and apt['status'] in ['PENDING', 'CONFIRMED']]
     
-    if not pending_apts:
-        await update.message.reply_text("❌ Bekor qilish uchun faol qabullar topilmadi.")
+    if not active_apts:
+        await update.message.reply_text("❌ Bekor qilish uchun faol (kutilayotgan yoki tasdiqlangan) qabullar topilmadi.")
         return
 
-    # Cancel the most recent one
-    for apt in pending_apts:
+    # Cancel them
+    for apt in active_apts:
+        old_status = apt['status']
         apt['status'] = 'CANCELLED'
         
         # Notify doctor
         username_text = f"@{update.effective_user.username}" if update.effective_user.username else "Mavjud emas"
-        msg = f"❌ BEMOR QABULNI BEKOR QILDI\n\nID: #{apt['id']}\nBemor: {apt['first_name']} {apt['last_name']} ({username_text})\nSana: {apt['date']} {apt['time']}"
+        status_text = "Tasdiqlangan" if old_status == 'CONFIRMED' else "Kutilayotgan"
+        
+        msg = (
+            f"❌ <b>BEMOR QABULNI BEKOR QILDI</b>\n\n"
+            f"🆔 ID: #{apt['id']}\n"
+            f"👤 Bemor: {apt['first_name']} {apt['last_name']} ({username_text})\n"
+            f"📅 Sana: {apt['date']} {apt['time']}\n"
+            f"ℹ️ Holati: {status_text}"
+        )
         try:
-            await context.bot.send_message(chat_id=DOCTOR_ID, text=msg)
+            await context.bot.send_message(chat_id=DOCTOR_ID, text=msg, parse_mode='HTML')
         except Exception as e:
             logger.error(f"Failed to notify doctor of cancellation: {e}")
 
@@ -724,6 +753,11 @@ async def cancel_booking_command(update: Update, context: ContextTypes.DEFAULT_T
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show help information"""
+    # Check if doctor
+    if str(update.effective_user.id) == DOCTOR_ID:
+        await doctor_help_command(update, context)
+        return
+
     help_text = """
 📱 Asosiy menyu:
 
