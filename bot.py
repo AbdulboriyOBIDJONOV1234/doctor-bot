@@ -548,13 +548,13 @@ async def doctor_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "✅ <b>Qabulingiz tasdiqlandi!</b>\n\n"
             "Doktor qabulingizni tasdiqladi. Belgilangan vaqtingizga kelishingiz mumkin.\n\n"
             "📍 <b>Manzil:</b> Farg’ona shaxar Oybek ko’chasi 8G uy\n"
-            "🗺 <b>Lokatsiya:</b> https://maps.app.goo.gl/xM6eqRFpUchtQs416"
+            "🗺 <b>Lokatsiya:</b> https://maps.google.com/?q=40.3717652,71.7880633"
         )
         
         try:
             await context.bot.send_message(chat_id=patient_id, text=patient_msg, parse_mode='HTML')
             # Send actual location point
-            await context.bot.send_location(chat_id=patient_id, latitude=40.3842, longitude=71.7843) # Koordinatalar taxminiy, aniqrog'ini Google Mapsdan olish kerak
+            await context.bot.send_location(chat_id=patient_id, latitude=40.3717652, longitude=71.7880633)
         except Exception as e:
             logger.error(f"Failed to send confirmation to patient {patient_id}: {e}")
             
@@ -800,7 +800,7 @@ async def check_reminders(context: ContextTypes.DEFAULT_TYPE):
                     f"Sizning qabulingizga 1 soat vaqt qoldi.\n\n"
                     f"📅 Vaqt: {apt['time']}\n"
                     f"📍 Manzil: Farg’ona shaxar Oybek ko’chasi 8G uy\n"
-                    f"🗺 Lokatsiya: https://maps.app.goo.gl/xM6eqRFpUchtQs416"
+                    f"🗺 Lokatsiya: https://maps.google.com/?q=40.3717652,71.7880633"
                 )
                 try:
                     await context.bot.send_message(chat_id=user_id, text=msg, parse_mode='HTML')
@@ -1073,7 +1073,7 @@ def main():
             APPOINTMENT_TIME: [CallbackQueryHandler(appointment_time)],
             CONFIRM: [CallbackQueryHandler(confirm_booking)],
         },
-        fallbacks=[CommandHandler('cancel', cancel_conversation)],
+        fallbacks=[CommandHandler('cancel', cancel_conversation), CommandHandler('help', help_command)],
     )
     
     application.add_handler(conv_handler)
