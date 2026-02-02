@@ -186,7 +186,7 @@ async def doctor_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show doctor's main menu with reply buttons."""
     keyboard = [
         ["📅 Bugungi qabullar", "📋 Barcha qabullar"],
-        ["🆘 Yordam"]
+        ["📊 Statistika", "🆘 Yordam"]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     await update.message.reply_text("👨‍⚕️ Xush kelibsiz, Doktor! Asosiy menyu:", reply_markup=reply_markup)
@@ -991,6 +991,40 @@ async def start_booking(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         return await start(update, context)
 
+async def doctor_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show statistics to the doctor."""
+    if str(update.effective_user.id) != DOCTOR_ID:
+        return
+
+    total_patients = len(patients_db)
+    total_appointments = len(appointments_db)
+    
+    status_counts = {
+        'PENDING': 0,
+        'CONFIRMED': 0,
+        'CANCELLED': 0,
+        'COMPLETED': 0,
+        'REJECTED': 0
+    }
+    
+    for apt in appointments_db.values():
+        status = apt.get('status', 'UNKNOWN')
+        if status in status_counts:
+            status_counts[status] += 1
+
+    msg = (
+        f"📊 <b>Statistika:</b>\n\n"
+        f"👥 Jami bemorlar: {total_patients}\n"
+        f"📑 Jami qabullar: {total_appointments}\n\n"
+        f"⏳ Kutilayotgan: {status_counts.get('PENDING', 0)}\n"
+        f"✅ Tasdiqlangan: {status_counts.get('CONFIRMED', 0)}\n"
+        f"❌ Bekor qilingan: {status_counts.get('CANCELLED', 0)}\n"
+        f"🚫 Rad etilgan: {status_counts.get('REJECTED', 0)}\n"
+        f"✔️ Yakunlangan: {status_counts.get('COMPLETED', 0)}"
+    )
+    
+    await update.message.reply_text(msg, parse_mode='HTML')
+
 async def doctor_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle doctor menu text buttons"""
     text = update.message.text
@@ -998,6 +1032,8 @@ async def doctor_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await today_appointments(update, context)
     elif text == "📋 Barcha qabullar":
         await all_pending_appointments(update, context)
+    elif text == "📊 Statistika":
+        await doctor_statistics(update, context)
     elif text == "🆘 Yordam":
         await doctor_help_command(update, context)
 
@@ -1120,7 +1156,7 @@ def main():
     application.add_handler(CallbackQueryHandler(doctor_action, pattern="^admin_"))
     application.add_handler(CallbackQueryHandler(feedback_handler, pattern="^feedback_"))
     application.add_handler(CallbackQueryHandler(confirm_visit_handler, pattern="^confirm_visit_"))
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^(📅 Bugungi qabullar|📋 Barcha qabullar|🆘 Yordam)$"), doctor_menu_handler))
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^(📅 Bugungi qabullar|📋 Barcha qabullar|📊 Statistika|🆘 Yordam)$"), doctor_menu_handler))
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^(📅 Mening qabullarim|📔 Oldingi qabullarim|📞 Doktor bilan bog'lanish)$"), patient_menu_handler))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, doctor_input_handler))
     
