@@ -186,7 +186,8 @@ async def doctor_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show doctor's main menu with reply buttons."""
     keyboard = [
         ["📅 Bugungi qabullar", "📋 Barcha qabullar"],
-        ["📊 Statistika", "🆘 Yordam"]
+        ["📊 Statistika", " Reklama yuborish"],
+        ["🆘 Yordam"]
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     await update.message.reply_text("👨‍⚕️ Xush kelibsiz, Doktor! Asosiy menyu:", reply_markup=reply_markup)
@@ -1027,6 +1028,10 @@ async def doctor_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def doctor_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle doctor menu text buttons"""
+    # Clear any pending states when switching menus
+    if update.effective_user.id in doctor_states:
+        del doctor_states[update.effective_user.id]
+
     text = update.message.text
     if text == "📅 Bugungi qabullar":
         await today_appointments(update, context)
@@ -1034,6 +1039,14 @@ async def doctor_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await all_pending_appointments(update, context)
     elif text == "📊 Statistika":
         await doctor_statistics(update, context)
+    elif text == "📢 Reklama yuborish":
+        doctor_states[update.effective_user.id] = {'action': 'broadcast_message'}
+        await update.message.reply_text(
+            "📢 <b>Reklama yuborish rejimi</b>\n\n"
+            "Barcha bemorlarga yubormoqchi bo'lgan xabaringizni yozing (matn, rasm yoki video).\n"
+            "Bekor qilish uchun boshqa menyu tugmasini bosing.",
+            parse_mode='HTML'
+        )
     elif text == "🆘 Yordam":
         await doctor_help_command(update, context)
 
@@ -1048,7 +1061,7 @@ async def patient_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         await contact_doctor_command(update, context)
 
 async def doctor_input_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle text input from doctor (for rejection reasons, etc)"""
+    """Handle input from doctor (rejection reasons, broadcasts)"""
     user_id = update.effective_user.id
     if str(user_id) != DOCTOR_ID:
         return
@@ -1058,6 +1071,10 @@ async def doctor_input_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         return
 
     if state['action'] == 'reject_reason':
+        if not update.message.text:
+            await update.message.reply_text("⚠️ Iltimos, rad etish sababini matn ko'rinishida yozing.")
+            return
+            
         reason = update.message.text
         apt_id = state['apt_id']
         
@@ -1090,6 +1107,24 @@ async def doctor_input_handler(update: Update, context: ContextTypes.DEFAULT_TYP
                 logger.error(f"Failed to edit doctor message: {e}")
         
         await update.message.reply_text("✅ Rad etish sababi yuborildi va bemor xabardor qilindi.")
+        del doctor_states[user_id]
+        
+    elif state['action'] == 'broadcast_message':
+        count = 0
+        status_msg = await update.message.reply_text("⏳ Xabar yuborilmoqda...")
+        
+        for patient_id in patients_db:
+            if str(patient_id) == DOCTOR_ID:
+                continue
+            try:
+                # Copy the message (text, photo, video, etc.)
+                await update.message.copy(chat_id=patient_id)
+                count += 1
+            except Exception as e:
+                logger.error(f"Failed to broadcast to {patient_id}: {e}")
+        
+        await context.bot.delete_message(chat_id=user_id, message_id=status_msg.message_id)
+        await update.message.reply_text(f"✅ Xabar {count} ta bemorga muvaffaqiyatli yuborildi.")
         del doctor_states[user_id]
 
 # Render Health Check Server
@@ -1156,9 +1191,9 @@ def main():
     application.add_handler(CallbackQueryHandler(doctor_action, pattern="^admin_"))
     application.add_handler(CallbackQueryHandler(feedback_handler, pattern="^feedback_"))
     application.add_handler(CallbackQueryHandler(confirm_visit_handler, pattern="^confirm_visit_"))
-    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^(📅 Bugungi qabullar|📋 Barcha qabullar|📊 Statistika|🆘 Yordam)$"), doctor_menu_handler))
+    application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^(📅 Bugungi qabullar|📋 Barcha qabullar|📊 Statistika|📢 Reklama yuborish|🆘 Yordam)$"), doctor_menu_handler))
     application.add_handler(MessageHandler(filters.TEXT & filters.Regex("^(📅 Mening qabullarim|📔 Oldingi qabullarim|📞 Doktor bilan bog'lanish)$"), patient_menu_handler))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, doctor_input_handler))
+    application.add_handler(MessageHandler((filters.TEXT | filters.PHOTO | filters.VIDEO | filters.Document.ALL) & ~filters.COMMAND, doctor_input_handler))
     
     # Start bot
     print("Bot is running...")
