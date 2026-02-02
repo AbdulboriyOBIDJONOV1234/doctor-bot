@@ -22,6 +22,7 @@ from telegram.ext import (
     filters
 )
 from dotenv import load_dotenv
+from openai import AsyncOpenAI
 
 # Enable logging
 logging.basicConfig(
@@ -36,6 +37,10 @@ load_dotenv()
 # Bot Configuration
 DOCTOR_ID = os.getenv("DOCTOR_ID", "8104665298")
 BOT_TOKEN = os.getenv("BOT_TOKEN", "7173294170:AAEvJTWZg-Td8Xeq5SvuEjxmYNBLh_qNq7U").strip().replace('"', '').replace("'", "")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+# Initialize OpenAI
+openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 # Database Configuration
 DB_NAME = "bot_data.db"
@@ -1230,13 +1235,31 @@ async def patient_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 async def ai_chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle chat messages with AI"""
     user_text = update.message.text
-    # Placeholder for AI logic
-    response = "🤖 <b>AI Yordamchi:</b>\n\nUzr, hozircha men faqat oldindan yozilgan javoblarni bilaman. Tez orada to'liq sun'iy intellekt ishga tushadi!"
     
-    if "salom" in user_text.lower():
-        response = "🤖 <b>AI Yordamchi:</b>\n\nAssalomu alaykum! Sizga qanday yordam bera olaman?"
-        
-    await update.message.reply_text(response, parse_mode='HTML')
+    if not openai_client:
+        # Fallback if no API key
+        response = "🤖 <b>AI Yordamchi:</b>\n\nUzr, hozircha men faqat oldindan yozilgan javoblarni bilaman. Tez orada to'liq sun'iy intellekt ishga tushadi!"
+        if "salom" in user_text.lower():
+            response = "🤖 <b>AI Yordamchi:</b>\n\nAssalomu alaykum! Sizga qanday yordam bera olaman?"
+        await update.message.reply_text(response, parse_mode='HTML')
+        return
+
+    # Show typing action
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+
+    try:
+        response = await openai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Siz professional nevrolog yordamchisisiz. Ismingiz 'Dr. Obidjonov AI'. Siz bemorlarga xushmuomalalik bilan javob berasiz. Tibbiy tashxis qo'ymaysiz, faqat umumiy maslahat berasiz va har doim shifokor qabuliga yozilishni tavsiya qilasiz. Javoblarni o'zbek tilida, chiroyli va tushunarli qilib bering."},
+                {"role": "user", "content": user_text}
+            ]
+        )
+        ai_reply = response.choices[0].message.content
+        await update.message.reply_text(f"🤖 <b>AI Yordamchi:</b>\n\n{ai_reply}", parse_mode='HTML')
+    except Exception as e:
+        logger.error(f"OpenAI API Error: {e}")
+        await update.message.reply_text("⚠️ Uzr, hozircha AI tizimida vaqtincha nosozlik bor.")
 
 async def doctor_input_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle input from doctor (rejection reasons, broadcasts)"""
