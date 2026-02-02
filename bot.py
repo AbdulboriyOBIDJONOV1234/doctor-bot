@@ -62,6 +62,11 @@ def init_db():
     # Work hours table
     c.execute('''CREATE TABLE IF NOT EXISTS time_slots (time TEXT PRIMARY KEY)''')
     
+    # CREATE INDEXES FOR FASTER QUERIES
+    c.execute('''CREATE INDEX IF NOT EXISTS idx_appointments_user_id ON appointments(user_id)''')
+    c.execute('''CREATE INDEX IF NOT EXISTS idx_appointments_status ON appointments(status)''')
+    c.execute('''CREATE INDEX IF NOT EXISTS idx_appointments_date ON appointments(date)''')
+    
     # Default times if empty
     c.execute("SELECT count(*) FROM time_slots")
     if c.fetchone()[0] == 0:
@@ -72,9 +77,13 @@ def init_db():
 
 @contextmanager
 def get_db():
-    """Context manager for database connection"""
-    conn = sqlite3.connect(DB_NAME)
+    """Context manager for database connection with optimizations"""
+    conn = sqlite3.connect(DB_NAME, timeout=10.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    # Enable WAL mode for better concurrent access
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA cache_size=10000")
     try:
         yield conn
     finally:
@@ -205,20 +214,19 @@ def generate_time_slots():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start conversation and ask for language"""
     user_id = update.effective_user.id
-    # Show typing action to indicate responsiveness
-    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     
-    # Check if user is doctor
+    # Check if user is doctor - FAST CHECK FIRST
     if str(user_id) == DOCTOR_ID:
         return await doctor_menu(update, context)
 
-    # Check if the patient is already registered
+    # Check if the patient is already registered - OPTIMIZED QUERY
     with get_db() as conn:
-        patient = conn.execute("SELECT * FROM patients WHERE user_id = ?", (str(user_id),)).fetchone()
+        patient = conn.execute("SELECT user_id FROM patients WHERE user_id = ? LIMIT 1", (str(user_id),)).fetchone()
     
     if patient:
         return await patient_menu(update, context)
 
+    # NEW USER - Show language selection IMMEDIATELY
     keyboard = [
         [InlineKeyboardButton("🇺🇿 O'zbek", callback_data='lang_uz')],
         [InlineKeyboardButton("🇷🇺 Русский", callback_data='lang_ru')],
@@ -226,7 +234,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    welcome_text = "🏥 Welcome to Neurology Consultation Bot!\n\nПожалуйста, выберите язык / Please select language / Iltimos, tilni tanlang:"
+    welcome_text = "🏥 Assalomu alaykum!\n\n🇷🇺 Здравствуйте!\n🇬🇧 Welcome!\n\nIltimos, tilni tanlang:"
     
     await update.message.reply_text(welcome_text, reply_markup=reply_markup)
     return LANGUAGE
@@ -255,10 +263,16 @@ async def patient_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📢 Yangiliklardan xabardor bo'lib turish uchun guruhimizga qo'shiling:\n"
         "https://t.me/DrNeuropathology07"
     )
-    if update.callback_query:
-        await update.callback_query.message.reply_text(msg_text, reply_markup=reply_markup, parse_mode='HTML')
-    else:
-        await update.message.reply_text(msg_text, reply_markup=reply_markup, parse_mode='HTML')
+    
+    # Send immediately without checking callback_query type
+    try:
+        if hasattr(update, 'callback_query') and update.callback_query:
+            await update.callback_query.message.reply_text(msg_text, reply_markup=reply_markup, parse_mode='HTML')
+        else:
+            await update.message.reply_text(msg_text, reply_markup=reply_markup, parse_mode='HTML')
+    except:
+        # Fallback
+        await update.effective_message.reply_text(msg_text, reply_markup=reply_markup, parse_mode='HTML')
 
     return ConversationHandler.END
 
@@ -787,19 +801,23 @@ async def my_appointments(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = context.user_data.get('language', 'en')
     
     with get_db() as conn:
-        user_appointments = conn.execute("SELECT * FROM appointments WHERE user_id = ? ORDER BY id DESC", (str(user_id),)).fetchall()
+        # Only get last 20 appointments for speed
+        user_appointments = conn.execute(
+            "SELECT * FROM appointments WHERE user_id = ? ORDER BY id DESC LIMIT 20", 
+            (str(user_id),)
+        ).fetchall()
     
     if not user_appointments:
-        await update.message.reply_text("📭 You have no appointments yet.")
+        await update.message.reply_text("📭 Sizda hali qabullar yo'q.")
         return
     
-    message = "📅 Sizning Qabullaringiz:\n\n"
+    message = "📅 <b>Sizning Qabullaringiz:</b>\n\n"
     for apt in user_appointments:
-        status_emoji = {'PENDING': '⏳', 'CONFIRMED': '✅', 'COMPLETED': '✔️', 'CANCELLED': '❌'}
+        status_emoji = {'PENDING': '⏳', 'CONFIRMED': '✅', 'COMPLETED': '✔️', 'CANCELLED': '❌', 'REJECTED': '🚫'}
         message += f"{status_emoji.get(apt['status'], '•')} #{apt['id']} - {apt['date']} soat {apt['time']}\n"
         message += f"   Holat: {apt['status']}\n\n"
     
-    await update.message.reply_text(message)
+    await update.message.reply_text(message, parse_mode='HTML')
 
 async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show appointment history"""
@@ -1221,12 +1239,6 @@ async def doctor_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def patient_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle patient menu text buttons"""
-    # Check if doctor is in a state (intercept text input)
-    user_id = update.effective_user.id
-    if str(user_id) == DOCTOR_ID and user_id in doctor_states:
-        await doctor_input_handler(update, context)
-        return
-
     text = update.message.text
     if text == "📅 Mening qabullarim":
         await my_appointments(update, context)
