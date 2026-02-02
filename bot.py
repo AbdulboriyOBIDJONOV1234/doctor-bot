@@ -649,11 +649,11 @@ async def notify_doctor_emergency(context, user):
 Bemor shoshilinch tibbiy yordam talab qiladigan alomatlarga ega!
 
 👤 Bemor ma'lumotlari:
-• Ism: {patient_data.get('first_name', 'Noma\'lum')} {patient_data.get('last_name', '')}
-• Yosh: {patient_data.get('age', 'Noma\'lum')}
-• Tel: {patient_data.get('phone', 'Noma\'lum')}
+• Ism: {patient_data.get('first_name', "Noma'lum")} {patient_data.get('last_name', '')}
+• Yosh: {patient_data.get('age', "Noma'lum")}
+• Tel: {patient_data.get('phone', "Noma'lum")}
 • Username: {username_text}
-• Manzil: {patient_data.get('location', 'Noma\'lum')}
+• Manzil: {patient_data.get('location', "Noma'lum")}
 
 🩺 Shikoyat:
 {patient_data.get('complaint', 'Kiritilmagan')}
@@ -661,7 +661,7 @@ Bemor shoshilinch tibbiy yordam talab qiladigan alomatlarga ega!
 ⚠️ DARHOL CHORA KO'RISH KERAK
 Bemorga 103 ga qo'ng'iroq qilish va shifoxonaga borish tavsiya qilindi.
 
-Iltimos, bemor bilan darhol bog'laning: {patient_data.get('phone', 'Noma\'lum')}
+Iltimos, bemor bilan darhol bog'laning: {patient_data.get('phone', "Noma'lum")}
     """
     
     try:
