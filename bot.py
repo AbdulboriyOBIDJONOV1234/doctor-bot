@@ -8,6 +8,8 @@ import json
 import logging
 import threading
 import sqlite3
+import time
+import urllib.request
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from datetime import datetime, timedelta
@@ -1373,8 +1375,28 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
 
 def start_web_server():
     port = int(os.getenv("PORT", 8080))
-    server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
-    server.serve_forever()
+    try:
+        server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
+        logger.info(f"Web server started on port {port}")
+        server.serve_forever()
+    except Exception as e:
+        logger.error(f"Failed to start web server: {e}")
+
+def run_self_ping():
+    """Render uxlamasligi uchun o'ziga so'rov yuborish"""
+    app_url = os.getenv("RENDER_EXTERNAL_URL")
+    if not app_url:
+        logger.warning("RENDER_EXTERNAL_URL topilmadi, self-ping ishlamaydi.")
+        return
+
+    time.sleep(30)  # Server ishga tushishini kutish
+    while True:
+        try:
+            urllib.request.urlopen(app_url)
+            logger.info("Self-ping successful (Bot uyg'oq)")
+        except Exception as e:
+            logger.error(f"Self-ping xatosi: {e}")
+        time.sleep(600)  # Har 10 daqiqada ping (Render 15 daqiqada uxlaydi)
 
 async def post_init(application: Application):
     await application.bot.set_my_commands([
@@ -1397,6 +1419,7 @@ def main():
     
     # Start dummy web server for Render
     threading.Thread(target=start_web_server, daemon=True).start()
+    threading.Thread(target=run_self_ping, daemon=True).start()
 
     # Create application
     application = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
