@@ -1373,6 +1373,10 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b"Bot is running")
 
+    def log_message(self, format, *args):
+        # UptimeRobot kirayotganini logda ko'rsatish
+        logger.info(f"Health check ping received from {self.client_address[0]}")
+
 def start_web_server():
     port = int(os.getenv("PORT", 8080))
     try:
@@ -1384,9 +1388,10 @@ def start_web_server():
 
 def run_self_ping():
     """Render uxlamasligi uchun o'ziga so'rov yuborish"""
-    app_url = os.getenv("RENDER_EXTERNAL_URL")
+    # Render URL yoki to'g'ridan-to'g'ri siz bergan manzil
+    app_url = os.getenv("RENDER_EXTERNAL_URL", "https://doctor-bot-yzcu.onrender.com")
     if not app_url:
-        logger.warning("RENDER_EXTERNAL_URL topilmadi, self-ping ishlamaydi.")
+        logger.warning("URL topilmadi, self-ping ishlamaydi.")
         return
 
     time.sleep(30)  # Server ishga tushishini kutish
