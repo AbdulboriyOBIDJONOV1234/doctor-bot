@@ -1373,6 +1373,10 @@ class HealthCheckHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b"Bot is running")
 
+    def do_HEAD(self):
+        self.send_response(200)
+        self.end_headers()
+
     def log_message(self, format, *args):
         # UptimeRobot kirayotganini logda ko'rsatish
         logger.info(f"Health check ping received from {self.client_address[0]}")
