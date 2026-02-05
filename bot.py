@@ -1401,7 +1401,7 @@ def run_self_ping():
     time.sleep(30)  # Server ishga tushishini kutish
     while True:
         try:
-            urllib.request.urlopen(app_url)
+            urllib.request.urlopen(app_url, timeout=30)
             logger.info("Self-ping successful (Bot uyg'oq)")
         except Exception as e:
             logger.error(f"Self-ping xatosi: {e}")
