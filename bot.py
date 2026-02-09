@@ -557,14 +557,17 @@ async def yangi_qabul(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     """Botni ishga tushirish"""
     if not BOT_TOKEN:
-        print("❌ XATO: BOT_TOKEN topilmadi!")
+        print("❌ XATO: BOT_TOKEN topilmadi! Render Environment Variables bo'limini tekshiring.")
         return
     
     print("🤖 Bot ishga tushmoqda...")
     print(f"📱 Bot username: @{DOCTOR_USERNAME}")
+    print(f"👥 Adminlar soni: {len(ADMIN_CHAT_IDS)} ta")
+    print(f"🆔 Admin IDlari: {ADMIN_CHAT_IDS}")
     
     # Render uchun web serverni alohida oqimda ishga tushirish
-    server_thread = Thread(target=run_web_server)
+    # daemon=True qildik, shunda asosiy dastur to'xtasa, server ham to'xtaydi
+    server_thread = Thread(target=run_web_server, daemon=True)
     server_thread.start()
 
     # Application yaratish

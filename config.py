@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # Telegram Bot Tokeni
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
-    raise ValueError("❌ XATO: BOT_TOKEN .env faylida topilmadi! Iltimos, uni qo'shing.")
+    logger.warning("⚠️ OGOHLANTIRISH: BOT_TOKEN topilmadi! Bot ishga tushmaydi.")
 
 # Adminlarning Chat ID raqamlari
 ADMIN_CHAT_IDS_STR = os.getenv("ADMIN_CHAT_IDS", "")
@@ -30,7 +30,8 @@ else:
         # Vergul bilan ajratilgan ID'larni raqamlar ro'yxatiga o'tkazish
         ADMIN_CHAT_IDS = [int(chat_id.strip()) for chat_id in ADMIN_CHAT_IDS_STR.split(',') if chat_id.strip()]
     except ValueError:
-        raise ValueError("❌ XATO: ADMIN_CHAT_IDS .env faylida noto'g'ri formatda kiritilgan. Faqat raqamlar va vergul ishlating.")
+        logger.error("❌ XATO: ADMIN_CHAT_IDS noto'g'ri formatda.")
+        ADMIN_CHAT_IDS = []
 
 # Doktor telefoni va foydalanuvchi nomi
 DOCTOR_PHONE = os.getenv("DOCTOR_PHONE", "Noma'lum")
