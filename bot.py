@@ -91,57 +91,73 @@ def vaqtlar_yasash():
     return vaqtlar
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Botni boshlash"""
-    # Admin tekshiruvi
-    if update.effective_user.id in ADMIN_CHAT_IDS:
-        keyboard = [
-            [InlineKeyboardButton("📊 Statistika", callback_data='admin_stat')]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            "👨‍⚕️ **Xush kelibsiz, Doktor!**\n\n"
-            "Asosiy menyu:",
-            reply_markup=reply_markup
-        )
-        return
+    """Botni boshlash va tilni tanlashni taklif qilish"""
+    keyboard = [
+        [InlineKeyboardButton("🇺🇿 O'zbekcha", callback_data='set_lang_uz')],
+        [InlineKeyboardButton("🇷🇺 Русский", callback_data='set_lang_ru')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    # Agar suhbat ichida /start bosilsa, uni tugatish uchun
+    if 'ism' in context.user_data:
+        context.user_data.clear()
 
-    xabar = """🏥 Assalomu alaykum!
+    await update.message.reply_text(
+        "Assalomu alaykum! Bot tilini tanlang.\n\n"
+        "Здравствуйте! Выберите язык бота.",
+        reply_markup=reply_markup
+    )
+    return ConversationHandler.END
+
+async def boshlash_suhbat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Suhbatni boshlash (qabulga yozilish)"""
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text(
+        "📝 Yaxshi! Keling, sizning ma'lumotlaringizni to'ldiramiz.\n\n"
+        "Iltimos, **ismingizni** kiriting:"
+    )
+    return ISM
+
+async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Suhbatdan tashqari inline tugmalar bosilganda"""
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+
+    # --- TILNI SOZLASH ---
+    if data.startswith('set_lang_'):
+        lang = data.split('_')[-1]
+        context.user_data['lang'] = lang
+        
+        # Admin menyusini ko'rsatish
+        if update.effective_user.id in ADMIN_CHAT_IDS:
+            keyboard = [
+                [InlineKeyboardButton("📅 Bugungi qabullar", callback_data='admin_today')],
+                [InlineKeyboardButton("📊 Statistika", callback_data='admin_stat')]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(
+                "👨‍⚕️ **Xush kelibsiz, Doktor!**\n\nAsosiy menyu:",
+                reply_markup=reply_markup
+            )
+        # Oddiy foydalanuvchi menyusini ko'rsatish
+        else:
+            xabar = """🏥 Assalomu alaykum!
 
 Men **Dr. Abdulatifovich** ning konsultatsiya botiman.
 
-Siz bu yerda:
-✅ Konsultatsiya uchun yozilishingiz mumkin
-✅ Nevrologik muammolar bo'yicha maslahat olishingiz mumkin
-✅ Favqulodda holatlarda yordam so'rashingiz mumkin
+Boshlash uchun pastdagi tugmani bosing."""
+            keyboard = [
+                [InlineKeyboardButton("📝 Qabulga yozilish", callback_data='boshlash')],
+                [InlineKeyboardButton("📞 Aloqa ma'lumotlari", callback_data='aloqa')],
+                [InlineKeyboardButton("❓ Savollar", callback_data='savol')]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(xabar, reply_markup=reply_markup)
+        return
 
-Boshlash uchun pastdagi tugmani bosing yoki /yangi_qabul buyrug'ini yuboring.
-
-⚠️ **Favqulodda holat bo'lsa:**
-• Keskin bosh og'rig'i
-• Nutq buzilishi
-• Yuz yoki tananing bir tomonida zaiflik
-• Tutqanoq (konvulsiya)
-• Ongni yo'qotish
-
-DARHOL 103 ga qo'ng'iroq qiling! ☎️
-"""
-    
-    keyboard = [
-        [InlineKeyboardButton("📝 Qabulga yozilish", callback_data='boshlash')],
-        [InlineKeyboardButton("📞 Aloqa ma'lumotlari", callback_data='aloqa')],
-        [InlineKeyboardButton("❓ Ko'p beriladigan savollar", callback_data='savol')]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text(xabar, reply_markup=reply_markup)
-
-async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Inline tugmalar bosilganda"""
-    query = update.callback_query
-    await query.answer()
-    
-    # Admin statistikasi
-    if query.data == 'admin_stat':
+    # --- ADMIN MENYUSI ---
+    elif data == 'admin_stat':
         bemorlar_soni = len(bemorlar)
         qabullar_soni = len(qabullar)
         bugun = datetime.now().strftime("%d.%m.%Y")
@@ -153,21 +169,37 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
 📝 **Jami qabullar:** {qabullar_soni} ta
 📅 **Bugungi qabullar:** {bugungi_qabullar} ta
 """
-        keyboard = [[InlineKeyboardButton("❌ Yopish", callback_data='admin_close')]]
+        keyboard = [[InlineKeyboardButton("◀️ Orqaga", callback_data='admin_menu_back')]]
         await query.edit_message_text(stat_xabar, reply_markup=InlineKeyboardMarkup(keyboard))
         return
-    elif query.data == 'admin_close':
-        await query.delete_message()
+
+    elif data == 'admin_today':
+        bugun_str = datetime.now().strftime("%d.%m.%Y")
+        bugungi_qabullar_list = [q for q in qabullar.values() if q.get('sana') == bugun_str]
+        
+        if not bugungi_qabullar_list:
+            text = f"📅 **{bugun_str}**\n\nBugun uchun rejalashtirilgan qabullar mavjud emas."
+        else:
+            text = f"📅 **{bugun_str} uchun qabullar:**\n\n"
+            bugungi_qabullar_list.sort(key=lambda x: x.get('vaqt', '00:00'))
+            for q in bugungi_qabullar_list:
+                text += f"🕒 **{q.get('vaqt')}** - {q.get('ism')} {q.get('familiya')} ({q.get('telefon')})\n"
+        
+        keyboard = [[InlineKeyboardButton("◀️ Orqaga", callback_data='admin_menu_back')]]
+        await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
-    if query.data == 'boshlash':
-        await query.edit_message_text(
-            "📝 Yaxshi! Keling, sizning ma'lumotlaringizni to'ldiramiz.\n\n"
-            "Iltimos, **ismingizni** kiriting:"
-        )
-        return ISM
-    
-    elif query.data == 'aloqa':
+    elif data == 'admin_menu_back':
+        keyboard = [
+            [InlineKeyboardButton("📅 Bugungi qabullar", callback_data='admin_today')],
+            [InlineKeyboardButton("📊 Statistika", callback_data='admin_stat')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text("👨‍⚕️ Asosiy menyu:", reply_markup=reply_markup)
+        return
+
+    # --- BEMOR MENYUSI ---
+    elif data == 'aloqa':
         aloqa_xabar = f"""📞 **Aloqa ma'lumotlari:**
 
 👨‍⚕️ **Doktor:** Dr. Abdulatifovich
@@ -183,11 +215,10 @@ Yakshanba: Dam olish kuni
 
 ⚠️ Favqulodda holatlarda: 103
 """
-        keyboard = [[InlineKeyboardButton("◀️ Orqaga", callback_data='orqaga')]]
+        keyboard = [[InlineKeyboardButton("◀️ Orqaga", callback_data='main_menu_back')]]
         await query.edit_message_text(aloqa_xabar, reply_markup=InlineKeyboardMarkup(keyboard))
-        return ConversationHandler.END
     
-    elif query.data == 'savol':
+    elif data == 'savol':
         savol_xabar = """❓ **Ko'p beriladigan savollar:**
 
 **1. Qabul qancha vaqt davom etadi?**
@@ -207,13 +238,18 @@ Qabuldan keyin naqd yoki plastik karta orqali.
 **5. Qabulni bekor qilsam bo'ladimi?**
 Ha, kamida 24 soat oldin xabar bering.
 """
-        keyboard = [[InlineKeyboardButton("◀️ Orqaga", callback_data='orqaga')]]
+        keyboard = [[InlineKeyboardButton("◀️ Orqaga", callback_data='main_menu_back')]]
         await query.edit_message_text(savol_xabar, reply_markup=InlineKeyboardMarkup(keyboard))
-        return ConversationHandler.END
     
-    elif query.data == 'orqaga':
-        await query.message.reply_text("Qaytadan /start ni bosing")
-        return ConversationHandler.END
+    elif data == 'main_menu_back':
+        xabar = "Bosh menyu."
+        keyboard = [
+            [InlineKeyboardButton("📝 Qabulga yozilish", callback_data='boshlash')],
+            [InlineKeyboardButton("📞 Aloqa ma'lumotlari", callback_data='aloqa')],
+            [InlineKeyboardButton("❓ Savollar", callback_data='savol')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(xabar, reply_markup=reply_markup)
 
 async def ism_olish(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Bemor ismini olish"""
@@ -620,9 +656,8 @@ def main():
     # Suhbat handler
     conv_handler = ConversationHandler(
         entry_points=[
-            CommandHandler('start', start),
-            CommandHandler('yangi_qabul', yangi_qabul),
-            CallbackQueryHandler(tugma_bosildi, pattern='^boshlash$')
+            # Suhbat faqat "Qabulga yozilish" tugmasi bosilganda boshlanadi
+            CallbackQueryHandler(boshlash_suhbat, pattern='^boshlash$')
         ],
         states={
             ISM: [MessageHandler(filters.TEXT & ~filters.COMMAND, ism_olish)],
@@ -644,6 +679,8 @@ def main():
     
     # Handlerlarni qo'shish
     application.add_handler(conv_handler)
+    application.add_handler(CommandHandler('start', start))
+    application.add_handler(CommandHandler('yangi_qabul', start)) # Alias
     application.add_handler(CallbackQueryHandler(tugma_bosildi))
     
     # Botni ishga tushirish
