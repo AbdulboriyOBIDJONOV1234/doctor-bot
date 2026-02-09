@@ -813,6 +813,7 @@ async def vaqt_tanlash(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bemor_malumot = {
         'id': qabul_id,
         'user_id': update.effective_user.id,
+        'username': update.effective_user.username,
         'ism': context.user_data['ism'],
         'familiya': context.user_data['familiya'],
         'yosh': context.user_data['yosh'],

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # ============================================
 
 # Telegram Bot Token (MAJBURIY)
-BOT_TOKEN = os.getenv("7173294170:AAEvJTWZg-Td8Xeq5SvuEjxmYNBLh_qNq7U")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
     logger.critical("❌ BOT_TOKEN topilmadi! Bot ishlamaydi.")
 
