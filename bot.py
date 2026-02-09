@@ -557,13 +557,13 @@ async def favqulodda_adminlarga(context, bemor_data):
 
 👤 **Bemor:**
 ━━━━━━━━━━━━━━━━━━━━
-• **Ism-familiya:** {bemor_data.get('ism', 'Noma\'lum')} {bemor_data.get('familiya', '')}
-• **Yosh:** {bemor_data.get('yosh', 'Noma\'lum')} yosh
-• **Telefon:** {bemor_data.get('telefon', 'Noma\'lum')}
-• **Manzil:** {bemor_data.get('manzil', 'Noma\'lum')}
+• **Ism-familiya:** {bemor_data.get('ism', "Noma'lum")} {bemor_data.get('familiya', '')}
+• **Yosh:** {bemor_data.get('yosh', "Noma'lum")} yosh
+• **Telefon:** {bemor_data.get('telefon', "Noma'lum")}
+• **Manzil:** {bemor_data.get('manzil', "Noma'lum")}
 
 🩺 **Favqulodda shikoyat:**
-{bemor_data.get('shikoyat', 'Noma\'lum')}
+{bemor_data.get('shikoyat', "Noma'lum")}
 
 ━━━━━━━━━━━━━━━━━━━━
 ⚠️ **DARHOL CHORALAR KO'RING!**
@@ -571,7 +571,7 @@ async def favqulodda_adminlarga(context, bemor_data):
 Bemor 103 ga qo'ng'iroq qilishga yo'naltirildi.
 
 ☎️ Iltimos, bemor bilan bog'laning:
-{bemor_data.get('telefon', 'Noma\'lum')}
+{bemor_data.get('telefon', "Noma'lum")}
 """
     
     # Har bir adminga xabar yuborish
