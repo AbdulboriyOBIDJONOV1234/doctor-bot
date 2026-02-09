@@ -98,7 +98,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text(
             "👨‍⚕️ **Xush kelibsiz, Doktor!**\n\n"
-            "Asosiy menyu:"
             "Asosiy menyu:",
             reply_markup=reply_markup
         )
