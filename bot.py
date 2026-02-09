@@ -103,8 +103,22 @@ async def check_subscription(user_id, context):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Botni boshlash va tilni tanlashni taklif qilish"""
     
-    # 1. Majburiy obuna tekshiruvi
     user_id = update.effective_user.id
+
+    # 0. Admin tekshiruvi (Eng birinchi bo'lishi kerak)
+    if user_id in ADMIN_CHAT_IDS:
+        keyboard = [
+            [InlineKeyboardButton("📅 Bugungi qabullar", callback_data='admin_today')],
+            [InlineKeyboardButton("📊 Statistika", callback_data='admin_stat')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            "👨‍⚕️ **Xush kelibsiz, Doktor!**\n\nAsosiy menyu:",
+            reply_markup=reply_markup
+        )
+        return ConversationHandler.END
+
+    # 1. Majburiy obuna tekshiruvi
     is_member = await check_subscription(user_id, context)
     
     if not is_member:
