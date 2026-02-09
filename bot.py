@@ -8,6 +8,8 @@ import os
 import json
 import logging
 from datetime import datetime, timedelta
+from threading import Thread
+from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -28,6 +30,18 @@ logging.basicConfig(
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
+# --- RENDER UCHUN WEB SERVER (Keep-Alive) ---
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Bot ishlamoqda! (Render Health Check)"
+
+def run_web_server():
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
+# ---------------------------------------------
 
 # Bot sozlamalari
 DOCTOR_USERNAME = "nevropatolog_abdulatifovich"
@@ -549,6 +563,10 @@ def main():
     print("🤖 Bot ishga tushmoqda...")
     print(f"📱 Bot username: @{DOCTOR_USERNAME}")
     
+    # Render uchun web serverni alohida oqimda ishga tushirish
+    server_thread = Thread(target=run_web_server)
+    server_thread.start()
+
     # Application yaratish
     application = Application.builder().token(BOT_TOKEN).build()
     
