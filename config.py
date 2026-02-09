@@ -21,7 +21,7 @@ if not BOT_TOKEN:
     logger.warning("⚠️ OGOHLANTIRISH: BOT_TOKEN topilmadi! Bot ishga tushmaydi.")
 
 # Adminlarning Chat ID raqamlari
-ADMIN_CHAT_IDS_STR = os.getenv("ADMIN_CHAT_IDS", "")
+ADMIN_CHAT_IDS_STR = os.getenv("ADMIN_CHAT_IDS", "7523126393")
 if not ADMIN_CHAT_IDS_STR:
     logger.warning("⚠️ DIQQAT: ADMIN_CHAT_IDS .env faylida topilmadi. Bemor ma'lumotlari hech qayerga yuborilmaydi.")
     ADMIN_CHAT_IDS = []

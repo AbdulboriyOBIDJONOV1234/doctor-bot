@@ -90,6 +90,20 @@ def vaqtlar_yasash():
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Botni boshlash"""
+    # Admin tekshiruvi
+    if update.effective_user.id in ADMIN_CHAT_IDS:
+        keyboard = [
+            [InlineKeyboardButton("📊 Statistika", callback_data='admin_stat')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(
+            "👨‍⚕️ **Xush kelibsiz, Doktor!**\n\n"
+            "Asosiy menyu:"
+            "Asosiy menyu:",
+            reply_markup=reply_markup
+        )
+        return
+
     xabar = """🏥 Assalomu alaykum!
 
 Men **Dr. Abdulatifovich** ning konsultatsiya botiman.
@@ -125,6 +139,26 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     
+    # Admin statistikasi
+    if query.data == 'admin_stat':
+        bemorlar_soni = len(bemorlar)
+        qabullar_soni = len(qabullar)
+        bugun = datetime.now().strftime("%d.%m.%Y")
+        bugungi_qabullar = sum(1 for q in qabullar.values() if q.get('sana') == bugun)
+        
+        stat_xabar = f"""📊 **Klinika Statistikasi**
+
+👥 **Jami bemorlar:** {bemorlar_soni} ta
+📝 **Jami qabullar:** {qabullar_soni} ta
+📅 **Bugungi qabullar:** {bugungi_qabullar} ta
+"""
+        keyboard = [[InlineKeyboardButton("❌ Yopish", callback_data='admin_close')]]
+        await query.edit_message_text(stat_xabar, reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+    elif query.data == 'admin_close':
+        await query.delete_message()
+        return
+
     if query.data == 'boshlash':
         await query.edit_message_text(
             "📝 Yaxshi! Keling, sizning ma'lumotlaringizni to'ldiramiz.\n\n"
