@@ -27,10 +27,17 @@ if not BOT_TOKEN:
 # ============================================
 
 # Admin Chat IDlari (vergul bilan ajratilgan)
-ADMIN_CHAT_IDS_STR = os.getenv("ADMIN_CHAT_IDS", "7523126393,8104665298")
+ADMIN_CHAT_IDS_STR = os.getenv("ADMIN_CHAT_IDS", "")
 
 if not ADMIN_CHAT_IDS_STR:
-    logger.warning("⚠️ DIQQAT: ADMIN_CHAT_IDS bo'sh! Adminlar mavjud emas.")
+    logger.critical("❌ DIQQAT: ADMIN_CHAT_IDS bo'sh! Adminlar mavjud emas.")
+    logger.critical("❌ Bemorlardan xabarlar HECH KIMGA kelmaydi!")
+    print("\n" + "="*60)
+    print("❌ KRITIK XATO: ADMIN_CHAT_IDS topilmadi!")
+    print("="*60)
+    print("📝 .env faylida ADMIN_CHAT_IDS qo'shing:")
+    print("   ADMIN_CHAT_IDS=7523126393")
+    print("="*60 + "\n")
     ADMIN_CHAT_IDS = []
 else:
     try:
@@ -41,8 +48,10 @@ else:
             if chat_id.strip()
         ]
         logger.info(f"✅ {len(ADMIN_CHAT_IDS)} ta admin yuklandi: {ADMIN_CHAT_IDS}")
+        print(f"✅ Adminlar: {ADMIN_CHAT_IDS}")
     except ValueError as e:
         logger.error(f"❌ ADMIN_CHAT_IDS noto'g'ri formatda: {e}")
+        print(f"❌ XATO: ADMIN_CHAT_IDS noto'g'ri: {ADMIN_CHAT_IDS_STR}")
         ADMIN_CHAT_IDS = []
 
 # ============================================
@@ -190,7 +199,7 @@ def validate_config():
         warnings.append("ADMIN_CHAT_IDS bo'sh - adminlar mavjud emas!")
     
     # Ogohlantirishlar
-    if DOCTOR_PHONE == "+998 99 864 47 54":
+    if DOCTOR_PHONE == "+998 XX XXX XX XX":
         warnings.append("DOCTOR_PHONE standart qiymatda - o'zgartiring!")
     
     if CHANNEL_USERNAME == "@DrNeuropathology07":

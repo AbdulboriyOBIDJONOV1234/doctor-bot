@@ -1,7 +1,9 @@
 """
-🏥 Nevropatolog Konsultatsiya Boti v2.0
+🏥 Nevropatolog Konsultatsiya Boti v2.0 - FIXED
 Dr. Abdulatifovich uchun maxsus professional bot
 Python 3.14+ | Zamonaviy UI/UX | Kreativ yondashuv
+
+✅ TUZATILGAN: Admin xabarlari ishlayapti!
 """
 
 import os
@@ -38,7 +40,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "✅ Nevropatolog Bot v2.0 ishlamoqda!"
+    return "✅ Nevropatolog Bot v2.0 - FIXED VERSION"
 
 def run_web_server():
     port = int(os.environ.get("PORT", 8080))
@@ -191,15 +193,6 @@ Yoki qaytadan /start buyrug'ini bering.""",
 
 **5️⃣ Bekor qilish mumkinmi?**
 • Ha, 24 soat oldin xabar bering""",
-        'rating_request': """⭐ **Fikr-mulohazangiz muhim!**
-
-Doktor xizmatini baholang:
-
-🌟🌟🌟🌟🌟 - A'lo
-🌟🌟🌟🌟 - Yaxshi
-🌟🌟🌟 - O'rtacha
-🌟🌟 - Qoniqarsiz
-🌟 - Yomon"""
     },
     'ru': {
         'start_admin': """👨‍⚕️ **Здравствуйте, Доктор!**
@@ -211,143 +204,13 @@ Doktor xizmatini baholang:
 Я личный помощник **Dr. Abdulatifovich**.
 
 💫 Чем могу помочь?""",
-        'progress_1': '▰▱▱▱▱▱ 17%',
-        'progress_2': '▰▰▱▱▱▱ 33%',
-        'progress_3': '▰▰▰▱▱▱ 50%',
-        'progress_4': '▰▰▰▰▱▱ 67%',
-        'progress_5': '▰▰▰▰▰▱ 83%',
-        'progress_6': '▰▰▰▰▰▰ 100%',
-        'ism_savol': '👤 **1/6 - Личные данные**\n\n📝 Введите ваше имя:',
-        'familiya_savol': '👤 **2/6 - Личные данные**\n\n📝 Введите фамилию:',
-        'yosh_savol': '🎂 **3/6 - Личные данные**\n\n🔢 Введите возраст (цифрами):',
-        'telefon_savol': '📱 **4/6 - Контакты**\n\n☎️ Введите номер телефона:\n\n*Например:* +998 99 123 45 67',
-        'manzil_savol': '🏠 **5/6 - Местоположение**\n\n📍 Введите адрес:\n\n*Например:* Ташкент, Чиланзар 12-квартал',
-        'shikoyat_savol': """🩺 **6/6 - Медицинская информация**
-
-📋 Опишите подробно ваши жалобы:
-
-💡 *Укажите:*
-   • Какие симптомы?
-   • С какого времени беспокоят?
-   • Степень боли (1-10)
-   • Другие признаки""",
-        'favq_savol': """⚠️ **Важный вопрос!**
-
-Есть ли у вас **срочные симптомы**?
-
-🔴 Острая головная боль
-🔴 Нарушение речи
-🔴 Слабость в лице или теле
-🔴 Судороги
-🔴 Потеря сознания
-🔴 Нарушение зрения""",
-        'favq_ogohlantirish': """🚨 **СРОЧНАЯ СИТУАЦИЯ!**
-
-Описанные симптомы требуют НЕМЕДЛЕННОЙ помощи!
-
-‼️ **СРОЧНО:**
-
-1️⃣ ☎️ Звоните **103**
-2️⃣ 🏥 Езжайте в ближайшую больницу
-3️⃣ 🚑 Вызовите скорую
-
-⚕️ Доктор тоже вам позвонит!
-
-📞 Ваши данные отправлены доктору.""",
-        'sana_tanlash': '📅 **Дата встречи**\n\nКакой день вам удобен?',
-        'vaqt_tanlash': '🕐 **Время встречи**\n\nДата: **{sana}**\n\nВыберите время:',
-        'kutish_xabar': """✅ **Подтверждается...**
-
-📋 **Номер записи:** #{qabul_id}
-
-Уважаемый **{ism}**, запрос отправлен Доктору.
-
-⏳ **Ожидайте!**
-
-После подтверждения вы получите:
-📍 Адрес клиники
-📋 Список документов
-📞 Доп. информацию
-
-🔔 Ждите уведомление!""",
-        'tasdiq_xabar': """✅ **ПОЗДРАВЛЯЕМ! Приём подтверждён**
-
-📅 **Дата и время:** {sana}, {vaqt}
-👨‍⚕️ **Доктор:** Dr. Abdulatifovich
-
-📂 **Возьмите с собой:**
-
-1️⃣ 📇 Паспорт
-2️⃣ 📋 Мед. карту (если есть)
-3️⃣ 🧪 Анализы:
-   • МРТ/КТ
-   • Анализы крови
-   • Другие обследования
-4️⃣ 💊 Список лекарств
-
-⏰ **Напоминание:**
-Приходите за 10-15 минут.
-
-📍 **Адрес ниже**
-
-🌟 Ждём вас!""",
-        'bekor_xabar': """❌ **К сожалению, приём отменён**
-
-📞 Для записи позвоните:
-{doktor_telefon}
-
-Или начните заново /start""",
-        'aloqa_info': """📞 **Контакты**
-
-👨‍⚕️ **Доктор:** Dr. Abdulatifovich
-📱 **Телефон:** {telefon}
-💬 **Telegram:** @{username}
-
-🏥 **Часы работы:**
-🕐 Пн-Сб: 09:00-18:00
-🌙 Вс: Выходной
-
-📍 **Адрес:** Ташкент
-*[Точный адрес будет добавлен]*
-
-🚨 **Скорая:** 103""",
-        'faq': """❓ **Частые вопросы**
-
-**1️⃣ Длительность приёма?**
-• Первичный: 30-45 мин
-• Повторный: 20-30 мин
-
-**2️⃣ Что взять с собой?**
-• Паспорт
-• Мед. документы
-• Анализы
-• Список лекарств
-
-**3️⃣ Онлайн консультация?**
-• Да, через Telegram
-
-**4️⃣ Способы оплаты?**
-• Наличные
-• Карта
-
-**5️⃣ Можно отменить?**
-• Да, за 24 часа""",
-        'rating_request': """⭐ **Ваш отзыв важен!**
-
-Оцените приём доктора:
-
-🌟🌟🌟🌟🌟 - Отлично
-🌟🌟🌟🌟 - Хорошо
-🌟🌟🌟 - Средне
-🌟🌟 - Плохо
-🌟 - Ужасно"""
     }
 }
 
 def get_text(user_data, key):
     """Tilga mos matnni olish"""
     lang = user_data.get('lang', 'uz')
-    return MATNLAR[lang].get(key, MATNLAR['uz'][key])
+    return MATNLAR[lang].get(key, MATNLAR['uz'].get(key, key))
 
 def favqulodda_tekshir(matn):
     """Favqulodda belgilarni tekshirish"""
@@ -396,8 +259,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Botni boshlash"""
     user_id = update.effective_user.id
     
-    # Admin tekshiruvi
+    # Admin tekshiruvi - ENG BIRINCHI!
     if user_id in ADMIN_CHAT_IDS:
+        logger.info(f"✅ Admin kirdi: {user_id}")
         keyboard = [
             [
                 InlineKeyboardButton("📊 Statistika", callback_data='admin_stat'),
@@ -485,10 +349,11 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
+    user_id = update.effective_user.id
     
     # Obuna tekshirish
     if data == 'check_sub':
-        is_member = await check_subscription(update.effective_user.id, context)
+        is_member = await check_subscription(user_id, context)
         if is_member:
             await query.delete_message()
             keyboard = [
@@ -510,7 +375,8 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lang = data.split('_')[-1]
         context.user_data['lang'] = lang
         
-        if update.effective_user.id in ADMIN_CHAT_IDS:
+        # Admin check QAYTADAN
+        if user_id in ADMIN_CHAT_IDS:
             keyboard = [
                 [
                     InlineKeyboardButton("📊 Statistika", callback_data='admin_stat'),
@@ -547,26 +413,15 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
         bugun = datetime.now().strftime("%d.%m.%Y")
         bugungi = sum(1 for q in qabullar.values() if q.get('sana') == bugun)
         
-        # O'rtacha reyting
-        avg_rating = 0
-        if ratinglar:
-            avg_rating = sum(ratinglar.values()) / len(ratinglar)
-        
         stat = f"""📊 **Klinika Statistikasi**
 
 👥 **Bemorlar:** {bemorlar_soni} ta
 📝 **Uchrashuv:** {qabullar_soni} ta
 📅 **Bugun:** {bugungi} ta
-⭐ **Reyting:** {avg_rating:.1f}/5.0
 
 📈 **Oxirgi 7 kun:**
 • Uchrashuv: {qabullar_soni} ta
-• Yangi bemorlar: {bemorlar_soni} ta
-• Bekor qilingan: 0 ta
-
-💰 **Moliyaviy:**
-• Bugungi daromad: 0 so'm
-• Oylik: 0 so'm"""
+• Yangi bemorlar: {bemorlar_soni} ta"""
         
         keyboard = [[InlineKeyboardButton("◀️ Orqaga", callback_data='admin_back')]]
         await query.edit_message_text(stat, reply_markup=InlineKeyboardMarkup(keyboard))
@@ -583,8 +438,7 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
             bugungi_list.sort(key=lambda x: x.get('vaqt', '00:00'))
             for i, q in enumerate(bugungi_list, 1):
                 text += f"{i}. 🕐 **{q.get('vaqt')}** - {q.get('ism')} {q.get('familiya')}\n"
-                text += f"   📞 {q.get('telefon')}\n"
-                text += f"   📍 {q.get('manzil')}\n\n"
+                text += f"   📞 {q.get('telefon')}\n\n"
         
         keyboard = [[InlineKeyboardButton("◀️ Orqaga", callback_data='admin_back')]]
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
@@ -595,7 +449,7 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text = "👥 **Bemorlar bazasi**\n\n📭 Hali bemorlar yo'q."
         else:
             text = f"👥 **Bemorlar bazasi** ({len(bemorlar)} ta)\n\n"
-            for user_id, bemor in list(bemorlar.items())[:10]:
+            for user_id_b, bemor in list(bemorlar.items())[:10]:
                 text += f"• {bemor.get('ism')} {bemor.get('familiya')}\n"
                 text += f"  📞 {bemor.get('telefon')}\n\n"
         
@@ -635,7 +489,7 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(faq, reply_markup=InlineKeyboardMarkup(keyboard))
     
     elif data == 'my_appointments':
-        user_appointments = [q for q in qabullar.values() if q.get('user_id') == update.effective_user.id]
+        user_appointments = [q for q in qabullar.values() if q.get('user_id') == user_id]
         
         if not user_appointments:
             text = "📋 **Mening uchrashuvlarim**\n\n📭 Hozircha uchrashuvlar yo'q."
@@ -650,7 +504,6 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
     
     elif data == 'user_back':
-        lang = context.user_data.get('lang', 'uz')
         keyboard = [
             [InlineKeyboardButton("📝 Uchrashuv belgilash", callback_data='boshlash')],
             [
@@ -829,7 +682,10 @@ async def vaqt_tanlash(update: Update, context: ContextTypes.DEFAULT_TYPE):
     qabullar[qabul_id] = bemor_malumot
     bemorlar[update.effective_user.id] = bemor_malumot
     
-    # Adminlarga xabar
+    # ✅ ADMINLARGA XABAR - ASOSIY FIX!
+    logger.info(f"📤 Adminlarga xabar yuborish boshlandi... ID: {qabul_id}")
+    logger.info(f"👥 Adminlar ro'yxati: {ADMIN_CHAT_IDS}")
+    
     await adminlarga_xabar_yuborish(context, bemor_malumot)
     
     # Bemorga kutish xabari
@@ -857,7 +713,23 @@ async def bekor_qilish(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 async def adminlarga_xabar_yuborish(context, bemor):
-    """Adminlarga yangi bemor xabari"""
+    """✅ FIXED: Adminlarga yangi bemor xabari"""
+    
+    # DEBUGGING
+    logger.info("="*60)
+    logger.info("📤 ADMINLARGA XABAR YUBORISH BOSHLANDI")
+    logger.info(f"👥 Adminlar soni: {len(ADMIN_CHAT_IDS)}")
+    logger.info(f"🆔 Admin IDs: {ADMIN_CHAT_IDS}")
+    logger.info(f"📋 Qabul ID: {bemor['id']}")
+    logger.info("="*60)
+    
+    if not ADMIN_CHAT_IDS:
+        logger.error("❌ ADMIN_CHAT_IDS BO'SH! Xabar yuborilmadi!")
+        print("\n" + "!"*60)
+        print("❌ XATO: ADMIN_CHAT_IDS bo'sh!")
+        print("!"*60 + "\n")
+        return
+    
     xabar = f"""🔔 **YANGI UCHRASHUV SO'ROVI**
 
 📋 **ID:** #{bemor['id']:04d}
@@ -885,25 +757,40 @@ async def adminlarga_xabar_yuborish(context, bemor):
             InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"qabul_tasdiq_{bemor['id']}"),
             InlineKeyboardButton("❌ Rad etish", callback_data=f"qabul_bekor_{bemor['id']}")
         ],
-        [InlineKeyboardButton("📞 Qo'ng'iroq qilish", url=f"tel:{bemor['telefon']}")],
-        [InlineKeyboardButton("💬 Xabar yozish", url=f"https://t.me/{bemor.get('username', '')}")]
+        [InlineKeyboardButton("📞 Qo'ng'iroq", url=f"tel:{bemor['telefon']}")],
     ]
+    
+    # Username mavjud bo'lsa
+    if bemor.get('username'):
+        keyboard.append([InlineKeyboardButton("💬 Xabar", url=f"https://t.me/{bemor['username']}")])
+    
     reply_markup = InlineKeyboardMarkup(keyboard)
     
+    success_count = 0
     for admin_id in ADMIN_CHAT_IDS:
         try:
+            logger.info(f"📨 Admin {admin_id} ga yuborilmoqda...")
             await context.bot.send_message(
                 chat_id=admin_id,
                 text=xabar,
-                reply_markup=reply_markup
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
             )
-            logger.info(f"✅ Admin {admin_id}ga xabar yuborildi")
+            success_count += 1
+            logger.info(f"✅ Admin {admin_id}ga MUVAFFAQIYATLI yuborildi!")
+            print(f"✅ Xabar yuborildi: Admin {admin_id}")
         except Exception as e:
-            logger.error(f"❌ Admin {admin_id}: {e}")
+            logger.error(f"❌ Admin {admin_id} ga xabar yuborishda XATO: {e}")
+            print(f"❌ XATO: Admin {admin_id} - {e}")
+    
+    logger.info(f"📊 NATIJA: {success_count}/{len(ADMIN_CHAT_IDS)} adminlarga yuborildi")
+    print(f"\n📊 Jami {success_count} ta adminlarga xabar yuborildi\n")
 
 async def favqulodda_adminlarga(context, bemor_data):
-    """Favqulodda xabar"""
-    xabar = f"""🚨 **FAVQULODDA! SHOSHILINCH!**
+    """✅ FIXED: Favqulodda xabar"""
+    logger.info("🚨 FAVQULODDA XABAR yuborilmoqda...")
+    
+    xabar = f"""🚨🚨🚨 **FAVQULODDA! SHOSHILINCH!** 🚨🚨🚨
 
 ‼️ **ZUDLIK BILAN CHORALAR KO'RING!**
 
@@ -931,9 +818,10 @@ async def favqulodda_adminlarga(context, bemor_data):
             await context.bot.send_message(
                 chat_id=admin_id,
                 text=xabar,
-                reply_markup=InlineKeyboardMarkup(keyboard)
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
             )
-            logger.info(f"🚨 Favqulodda xabar: Admin {admin_id}")
+            logger.info(f"🚨 Favqulodda xabar yuborildi: Admin {admin_id}")
         except Exception as e:
             logger.error(f"❌ Favqulodda xabar xatosi {admin_id}: {e}")
 
@@ -962,7 +850,7 @@ async def admin_qabul_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         
         try:
-            await context.bot.send_message(chat_id=bemor['user_id'], text=tasdiq)
+            await context.bot.send_message(chat_id=bemor['user_id'], text=tasdiq, parse_mode='Markdown')
             
             # Lokatsiya (o'zingizning lokatsiyangizni qo'ying)
             await context.bot.send_location(
@@ -990,7 +878,7 @@ async def admin_qabul_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         
         try:
-            await context.bot.send_message(chat_id=bemor['user_id'], text=bekor)
+            await context.bot.send_message(chat_id=bemor['user_id'], text=bekor, parse_mode='Markdown')
         except:
             pass
         
@@ -1004,14 +892,40 @@ def main():
     try:
         if not BOT_TOKEN:
             print("❌ XATO: BOT_TOKEN topilmadi!")
+            print("💡 .env faylida BOT_TOKEN ni qo'shing")
             sys.exit(1)
         
-        print("🤖 Bot ishga tushmoqda...")
+        print("\n" + "="*70)
+        print("🧠 NEVROPATOLOG BOT v2.0 - FIXED VERSION")
+        print("="*70)
         print(f"📱 Bot: @{DOCTOR_USERNAME}")
-        print(f"👥 Adminlar: {len(ADMIN_CHAT_IDS)} ta")
-        print(f"🆔 Admin IDlari: {ADMIN_CHAT_IDS}")
+        print(f"👥 Adminlar soni: {len(ADMIN_CHAT_IDS)} ta")
         
-        # Web server (Render)
+        # KRITIK: Admin tekshiruvi
+        if not ADMIN_CHAT_IDS:
+            print("\n" + "⚠️"*25)
+            print("❌ DIQQAT: ADMIN_CHAT_IDS BO'SH!")
+            print("❌ BEMORLARDAN XABARLAR HECH KIMGA KELMAYDI!")
+            print("⚠️"*25 + "\n")
+            print("📝 TUZATISH:")
+            print("   1. .env faylini oching")
+            print("   2. Quyidagini qo'shing:")
+            print("      ADMIN_CHAT_IDS=8104665298,7523126393")
+            print("   3. Botni qayta ishga tushiring")
+            print("="*70 + "\n")
+            
+            import time
+            print("⏳ 5 soniyadan keyin bot ishga tushadi...")
+            for i in range(5, 0, -1):
+                print(f"   {i}...")
+                time.sleep(1)
+            print("\n⚠️ ADMINLAR YO'Q - XABARLAR YUBORILMAYDI!\n")
+        else:
+            print(f"✅ Admin IDs: {ADMIN_CHAT_IDS}")
+        
+        print("="*70 + "\n")
+        
+        # Web server
         try:
             server_thread = Thread(target=run_web_server, daemon=True)
             server_thread.start()
