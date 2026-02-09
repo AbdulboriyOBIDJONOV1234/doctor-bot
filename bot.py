@@ -6,6 +6,8 @@ Python 3.14+ uchun yangilangan versiya
 
 import os
 import json
+import sys
+import traceback
 import logging
 from datetime import datetime, timedelta
 from threading import Thread
@@ -589,23 +591,32 @@ async def yangi_qabul(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     """Botni ishga tushirish"""
-    if not BOT_TOKEN:
-        print("❌ XATO: BOT_TOKEN topilmadi! Render Environment Variables bo'limini tekshiring.")
-        return
-    
-    print("🤖 Bot ishga tushmoqda...")
-    print(f"📱 Bot username: @{DOCTOR_USERNAME}")
-    print(f"👥 Adminlar soni: {len(ADMIN_CHAT_IDS)} ta")
-    print(f"🆔 Admin IDlari: {ADMIN_CHAT_IDS}")
-    
-    # Render uchun web serverni alohida oqimda ishga tushirish
-    # daemon=True qildik, shunda asosiy dastur to'xtasa, server ham to'xtaydi
-    server_thread = Thread(target=run_web_server, daemon=True)
-    server_thread.start()
+    try:
+        if not BOT_TOKEN:
+            print("❌ XATO: BOT_TOKEN topilmadi! Render Environment Variables bo'limini tekshiring.")
+            sys.exit(1)
+        
+        print("🤖 Bot ishga tushmoqda...")
+        print(f"📱 Bot username: @{DOCTOR_USERNAME}")
+        print(f"👥 Adminlar soni: {len(ADMIN_CHAT_IDS)} ta")
+        print(f"🆔 Admin IDlari: {ADMIN_CHAT_IDS}")
+        
+        # Render uchun web serverni alohida oqimda ishga tushirish
+        try:
+            server_thread = Thread(target=run_web_server, daemon=True)
+            server_thread.start()
+            print("✅ Web server ishga tushdi")
+        except Exception as e:
+            print(f"⚠️ Web serverda xatolik: {e}")
 
-    # Application yaratish
-    application = Application.builder().token(BOT_TOKEN).build()
-    
+        # Application yaratish
+        application = Application.builder().token(BOT_TOKEN).build()
+        
+    except Exception as e:
+        print(f"❌ KRITIK XATO (Boshlanishda): {e}")
+        traceback.print_exc()
+        sys.exit(1)
+
     # Suhbat handler
     conv_handler = ConversationHandler(
         entry_points=[
@@ -639,7 +650,12 @@ def main():
     print("✅ Bot muvaffaqiyatli ishga tushdi!")
     print("🔄 Botni to'xtatish uchun Ctrl+C ni bosing\n")
     
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    try:
+        application.run_polling(allowed_updates=Update.ALL_TYPES)
+    except Exception as e:
+        print(f"❌ KRITIK XATO (Ishlash vaqtida): {e}")
+        traceback.print_exc()
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()
