@@ -657,8 +657,8 @@ async def admin_qabul_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             # TODO: Aniq lokatsiyani kiriting
             await context.bot.send_location(
                 chat_id=bemor['user_id'], 
-                latitude=41.311081, 
-                longitude=69.240562
+                latitude=40.371810, 
+                longitude=71.789557
             )
             
             # Adminga o'zgarish
