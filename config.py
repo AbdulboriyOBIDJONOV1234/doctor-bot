@@ -36,6 +36,9 @@ else:
 # Doktor telefoni va foydalanuvchi nomi
 DOCTOR_PHONE = os.getenv("DOCTOR_PHONE", "Noma'lum")
 
+# Majburiy obuna uchun kanal
+CHANNEL_USERNAME = "@DrNeuropathology07"
+
 # --- FAVQULODDA HOLAT SOZLAMALARI ---
 FAVQULODDA_SOZLAR = [
     'keskin bosh og\'rig\'i', 'birdaniga', 'tutqanoq', 'konvulsiya',

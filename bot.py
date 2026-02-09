@@ -24,7 +24,7 @@ from telegram.ext import (
 )
 
 # Configdan ma'lumotlarni yuklash
-from config import BOT_TOKEN, DOCTOR_PHONE, ADMIN_CHAT_IDS, FAVQULODDA_SOZLAR
+from config import BOT_TOKEN, DOCTOR_PHONE, ADMIN_CHAT_IDS, FAVQULODDA_SOZLAR, CHANNEL_USERNAME
 
 # Logging sozlash
 logging.basicConfig(
@@ -50,7 +50,7 @@ DOCTOR_USERNAME = "nevropatolog_abdulatifovich"
 
 # Suhbat holatlari
 (ISM, FAMILIYA, YOSH, TELEFON, MANZIL, 
- SHIKOYAT, FAVQULODDA, SANA, VAQT, TASDIQLASH) = range(10)
+ SHIKOYAT, FAVQULODDA, SANA, VAQT) = range(9)
 
 # Ma'lumotlar bazasi (oddiy - keyinroq PostgreSQL qo'shamiz)
 bemorlar = {}
@@ -90,8 +90,32 @@ def vaqtlar_yasash():
             vaqtlar.append(f"{soat:02d}:30")
     return vaqtlar
 
+async def check_subscription(user_id, context):
+    """Foydalanuvchi kanalga a'zo ekanligini tekshirish"""
+    try:
+        member = await context.bot.get_chat_member(chat_id=CHANNEL_USERNAME, user_id=user_id)
+        return member.status in ['creator', 'administrator', 'member']
+    except Exception as e:
+        logger.error(f"Obuna tekshirishda xato: {e}")
+        # Agar bot kanal admini bo'lmasa yoki xato bo'lsa, o'tkazib yuboramiz (xalaqit bermasligi uchun)
+        return True
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Botni boshlash va tilni tanlashni taklif qilish"""
+    
+    # 1. Majburiy obuna tekshiruvi
+    user_id = update.effective_user.id
+    is_member = await check_subscription(user_id, context)
+    
+    if not is_member:
+        keyboard = [
+            [InlineKeyboardButton("📢 Kanalga a'zo bo'lish", url=f"https://t.me/{CHANNEL_USERNAME.replace('@', '')}")],
+            [InlineKeyboardButton("✅ A'zo bo'ldim", callback_data='check_sub')]
+        ]
+        msg = f"⚠️ **Hurmatli foydalanuvchi!**\n\nBotdan foydalanish uchun bizning rasmiy kanalimizga a'zo bo'lishingiz shart.\n\n👉 {CHANNEL_USERNAME}"
+        await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
+        return ConversationHandler.END
+
     keyboard = [
         [InlineKeyboardButton("🇺🇿 O'zbekcha", callback_data='set_lang_uz')],
         [InlineKeyboardButton("🇷🇺 Русский", callback_data='set_lang_ru')]
@@ -123,6 +147,16 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data = query.data
+
+    # --- OBUNA TEKSHIRISH ---
+    if data == 'check_sub':
+        is_member = await check_subscription(update.effective_user.id, context)
+        if is_member:
+            await query.delete_message()
+            await start(query, context) # Qaytadan start funksiyasini chaqiramiz
+        else:
+            await query.answer("❌ Siz hali kanalga a'zo bo'lmadingiz!", show_alert=True)
+        return
 
     # --- TILNI SOZLASH ---
     if data.startswith('set_lang_'):
@@ -441,46 +475,7 @@ async def vaqt_tanlash(update: Update, context: ContextTypes.DEFAULT_TYPE):
     vaqt = query.data.replace('vaqt_', '')
     context.user_data['vaqt'] = vaqt
     
-    # Ma'lumotlarni ko'rsatish
-    shikoyat_qisqa = context.user_data['shikoyat']
-    if len(shikoyat_qisqa) > 100:
-        shikoyat_qisqa = shikoyat_qisqa[:100] + "..."
-    
-    tasdiqlash_xabar = f"""✅ **Ma'lumotlaringizni tekshiring:**
-
-👤 **Ism:** {context.user_data['ism']} {context.user_data['familiya']}
-🎂 **Yosh:** {context.user_data['yosh']}
-📱 **Telefon:** {context.user_data['telefon']}
-📍 **Manzil:** {context.user_data['manzil']}
-🩺 **Shikoyat:** {shikoyat_qisqa}
-📅 **Sana:** {context.user_data['sana']}
-🕐 **Vaqt:** {context.user_data['vaqt']}
-
-Hammasi to'g'rimi?
-"""
-    
-    keyboard = [
-        [InlineKeyboardButton("✅ Ha, to'g'ri", callback_data='tasdiqlash_ha')],
-        [InlineKeyboardButton("❌ Yo'q, qaytadan", callback_data='tasdiqlash_yoq')]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await query.edit_message_text(tasdiqlash_xabar, reply_markup=reply_markup)
-    return TASDIQLASH
-
-async def tasdiqlash(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Qabulni tasdiqlash"""
-    query = update.callback_query
-    await query.answer()
-    
-    if query.data == 'tasdiqlash_yoq':
-        await query.edit_message_text(
-            "❌ Bekor qilindi.\n\n"
-            "Qaytadan boshlash uchun /start ni bosing."
-        )
-        return ConversationHandler.END
-    
-    # Qabulni saqlash
+    # --- MA'LUMOTLARNI SAQLASH VA YAKUNLASH ---
     qabul_id = len(qabullar) + 1
     bemor_malumot = {
         'id': qabul_id,
@@ -503,30 +498,21 @@ async def tasdiqlash(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Adminlarga xabar yuborish
     await adminlarga_xabar_yuborish(context, bemor_malumot)
     
-    # Bemorga tasdiqlash
-    muvaffaqiyat_xabar = f"""✅ **Qabul tasdiqlandi!**
+    # Bemorga xabar (Kutish rejimi)
+    kutish_xabar = f"""✅ **Ma'lumotlaringiz qabul qilindi!**
 
-📋 **Qabul raqami:** #{qabul_id:04d}
+📋 **So'rov raqami:** #{qabul_id:04d}
 
-Doktor siz bilan **{bemor_malumot['sana']}** kuni soat **{bemor_malumot['vaqt']}** da bog'lanadi.
+Hurmatli **{context.user_data['ism']}**, sizning so'rovingiz Doktorga yuborildi.
 
-⏰ **Eslatma:**
-• Qabuldan 24 soat oldin SMS yuboriladi
-• 1 soat oldin Telegram orqali eslatma keladi
-
-📝 **Qabul oldidan tayyorlang:**
-✓ Avvalgi tibbiy hujjatlar
-✓ Qabul qilayotgan dorilar ro'yxati
-✓ Tahlil natijalari (agar bor bo'lsa)
-
-📞 **Aloqa:**
-Telefon: {DOCTOR_PHONE}
-Telegram: @{DOCTOR_USERNAME}
-
-Sog'lig'ingiz yaxshi bo'lsin! 💚
+⏳ **Iltimos, kuting!**
+Doktor qabul vaqtini tasdiqlashi bilan sizga:
+📍 Klinika lokatsiyasi
+📋 Kerakli hujjatlar ro'yxati
+yuboriladi.
 """
     
-    await query.edit_message_text(muvaffaqiyat_xabar)
+    await query.edit_message_text(kutish_xabar)
     
     # Menyu ko'rsatish
     keyboard = [
@@ -574,12 +560,20 @@ async def adminlarga_xabar_yuborish(context, bemor):
 ✅ Iltimos, bemor bilan bog'laning!
 """
     
+    # Admin uchun tugmalar
+    keyboard = [
+        [InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"qabul_tasdiq_{bemor['id']}")],
+        [InlineKeyboardButton("❌ Bekor qilish", callback_data=f"qabul_bekor_{bemor['id']}")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     # Har bir adminga xabar yuborish
     for admin_id in ADMIN_CHAT_IDS:
         try:
             await context.bot.send_message(
                 chat_id=admin_id, 
-                text=xabar
+                text=xabar,
+                reply_markup=reply_markup
             )
             logger.info(f"Xabar yuborildi: Admin {admin_id}")
         except Exception as e:
@@ -625,6 +619,68 @@ async def yangi_qabul(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Yangi qabul buyrug'i"""
     await start(update, context)
 
+async def admin_qabul_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin qabulni tasdiqlashi yoki bekor qilishi"""
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+    
+    # ID ni ajratib olish
+    action, qabul_id_str = data.rsplit('_', 1)
+    qabul_id = int(qabul_id_str)
+    bemor = qabullar.get(qabul_id)
+    
+    if not bemor:
+        await query.edit_message_text("❌ Bu qabul topilmadi.")
+        return
+
+    if action == 'qabul_tasdiq':
+        # 1. Bemorga xabar yuborish
+        tasdiq_xabar = f"""✅ **XUSHXABAR! Qabulingiz tasdiqlandi.**
+
+📅 **Vaqt:** {bemor['sana']} soat {bemor['vaqt']}
+👨‍⚕️ **Doktor:** Dr. Abdulatifovich
+
+📂 **O'zingiz bilan olib kelishingiz SHART:**
+1. Pasport (shaxsni tasdiqlovchi hujjat)
+2. Tibbiy karta (agar bor bo'lsa)
+3. Oldingi tahlil natijalari (MRT, MSKT, qon tahlillari)
+4. Hozir ichayotgan dorilaringiz ro'yxati
+
+📍 **Manzilimiz pastda:**
+"""
+        try:
+            # Xabar
+            await context.bot.send_message(chat_id=bemor['user_id'], text=tasdiq_xabar)
+            
+            # Lokatsiya (Toshkent markazi misolida - buni o'zgartiring)
+            # TODO: Aniq lokatsiyani kiriting
+            await context.bot.send_location(
+                chat_id=bemor['user_id'], 
+                latitude=41.311081, 
+                longitude=69.240562
+            )
+            
+            # Adminga o'zgarish
+            await query.edit_message_text(
+                f"✅ **Qabul TASDIQLANDI!**\n\nBemor: {bemor['ism']} {bemor['familiya']}\nVaqt: {bemor['sana']} {bemor['vaqt']}\n\nBemorga lokatsiya va eslatma yuborildi."
+            )
+            bemor['holat'] = 'TASDIQLANDI'
+            
+        except Exception as e:
+            await query.message.reply_text(f"❌ Bemorga xabar yuborishda xatolik: {e}")
+
+    elif action == 'qabul_bekor':
+        # Bemorga xabar
+        bekor_xabar = f"❌ **Afsuski, qabulingiz bekor qilindi.**\n\nIltimos, boshqa vaqt tanlang yoki administrator bilan bog'laning: {DOCTOR_PHONE}"
+        try:
+            await context.bot.send_message(chat_id=bemor['user_id'], text=bekor_xabar)
+        except:
+            pass
+            
+        await query.edit_message_text(f"❌ **Qabul BEKOR QILINDI.**\n\nBemor: {bemor['ism']} {bemor['familiya']}")
+        bemor['holat'] = 'BEKOR_QILINDI'
+
 def main():
     """Botni ishga tushirish"""
     try:
@@ -668,8 +724,7 @@ def main():
             SHIKOYAT: [MessageHandler(filters.TEXT & ~filters.COMMAND, shikoyat_olish)],
             FAVQULODDA: [CallbackQueryHandler(favqulodda_javob)],
             SANA: [CallbackQueryHandler(sana_tanlash, pattern='^sana_')],
-            VAQT: [CallbackQueryHandler(vaqt_tanlash, pattern='^vaqt_')],
-            TASDIQLASH: [CallbackQueryHandler(tasdiqlash, pattern='^tasdiqlash_')]
+            VAQT: [CallbackQueryHandler(vaqt_tanlash, pattern='^vaqt_')]
         },
         fallbacks=[
             CommandHandler('cancel', bekor_qilish),
@@ -682,6 +737,7 @@ def main():
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('yangi_qabul', start)) # Alias
     application.add_handler(CallbackQueryHandler(tugma_bosildi))
+    application.add_handler(CallbackQueryHandler(admin_qabul_callback, pattern='^qabul_'))
     
     # Botni ishga tushirish
     print("✅ Bot muvaffaqiyatli ishga tushdi!")
