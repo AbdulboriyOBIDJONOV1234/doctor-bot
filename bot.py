@@ -113,15 +113,15 @@ Siz tasvirlagan alomatlar ZUDLIK bilan tibbiy yordam talab qiladi!
 ⚕️ Doktor ham sizga qo'ng'iroq qiladi!
 
 📞 Sizning ma'lumotlaringiz doktorga yuborildi.""",
-        'sana_tanlash': '📅 **Uchrashuv sanasi**\n\nQaysi kun sizga qulay?',
-        'vaqt_tanlash': '🕐 **Uchrashuv vaqti**\n\nSana: **{sana}**\n\nQaysi vaqt mos keladi?',
-        'kutish_xabar': """✅ **Tasdiqlanmoqda...**
+        'sana_tanlash': '📅 Qabul sanasi\n\nQaysi kun sizga qulay?',
+        'vaqt_tanlash': '🕐 Qabul vaqti\n\nSana: {sana}\n\nQaysi vaqt mos keladi?',
+        'kutish_xabar': """✅ Tasdiqlanmoqda...
 
-📋 **Uchrashuv raqami:** #{qabul_id}
+📋 Qabul raqami: #{qabul_id}
 
-Hurmatli **{ism}**, so'rovingiz Doktorga yuborildi.
+Hurmatli {ism}, so'rovingiz Doktorga yuborildi.
 
-⏳ **Iltimos, sabr qiling!**
+⏳ Iltimos, sabr qiling!
 
 Doktor tasdiqlagandan so'ng sizga:
 📍 Klinika joylashuvi
@@ -131,12 +131,12 @@ Doktor tasdiqlagandan so'ng sizga:
 yuboriladi.
 
 🔔 Xabar olishni kuting!""",
-        'tasdiq_xabar': """✅ **TABRIKLAYMIZ! Uchrashuv tasdiqlandi**
+        'tasdiq_xabar': """✅ TABRIKLAYMIZ! Qabulingiz tasdiqlandi
 
-📅 **Sana va vaqt:** {sana}, soat {vaqt}
-👨‍⚕️ **Doktor:** Dr. Abdulatifovich
+📅 Sana va vaqt: {sana}, soat {vaqt}
+👨‍⚕️ Doktor: Dr. Abdulatifovich
 
-📂 **O'zingiz bilan ALBATTA olib keling:**
+📂 O'zingiz bilan ALBATTA olib keling:
 
 1️⃣ 📇 Pasport (ID karta)
 2️⃣ 📋 Tibbiy karta (agar bor bo'lsa)
@@ -146,52 +146,52 @@ yuboriladi.
    • Boshqa tekshiruvlar
 4️⃣ 💊 Hozir qabul qilayotgan dorilar ro'yxati
 
-⏰ **Eslatma:**
-Uchrashuv vaqtidan 10-15 daqiqa oldin keling.
+⏰ Eslatma:
+Qabul vaqtidan 10-15 daqiqa oldin keling.
 
-📍 **Klinika manzili pastda ko'rsatilgan**
+📍 Klinika manzili pastda ko'rsatilgan
 
 🌟 Sizni kutamiz!""",
-        'bekor_xabar': """❌ **Afsuski, uchrashuv bekor qilindi**
+        'bekor_xabar': """❌ Afsuski, qabulingiz bekor qilindi
 
 📞 Boshqa vaqt uchun bog'laning:
 {doktor_telefon}
 
 Yoki qaytadan /start buyrug'ini bering.""",
-        'aloqa_info': """📞 **Bog'lanish ma'lumotlari**
+        'aloqa_info': """📞 Bog'lanish ma'lumotlari
 
-👨‍⚕️ **Doktor:** Dr. Abdulatifovich
-📱 **Telefon:** {telefon}
-💬 **Telegram:** @{username}
+👨‍⚕️ Doktor: Dr. Abdulatifovich
+📱 Telefon: {telefon}
+💬 Telegram: @{username}
 
-🏥 **Ish vaqti:**
+🏥 Ish vaqti:
 🕐 Dushanba-Shanba: 09:00-18:00
 🌙 Yakshanba: Dam olish
 
-📍 **Manzil:** Toshkent shahri
-*[Aniq manzil qo'shiladi]*
+📍 Manzil: Toshkent shahri
+[Aniq manzil qo'shiladi]
 
-🚨 **Favqulodda:** 103""",
-        'faq': """❓ **Tez-tez beriladigan savollar**
+🚨 Favqulodda: 103""",
+        'faq': """❓ Tez-tez beriladigan savollar
 
-**1️⃣ Uchrashuv qancha davom etadi?**
+1️⃣ Qabul qancha davom etadi?
 • Birinchi ko'rik: 30-45 daqiqa
 • Qayta ko'rik: 20-30 daqiqa
 
-**2️⃣ Nima olib borish kerak?**
+2️⃣ Nima olib borish kerak?
 • Pasport
 • Tibbiy hujjatlar
 • Tahlillar
 • Dorilar ro'yxati
 
-**3️⃣ Online konsultatsiya bormi?**
+3️⃣ Online konsultatsiya bormi?
 • Ha, Telegram orqali
 
-**4️⃣ To'lov usullari?**
+4️⃣ To'lov usullari?
 • Naqd
 • Plastik karta
 
-**5️⃣ Bekor qilish mumkinmi?**
+5️⃣ Bekor qilish mumkinmi?
 • Ha, 24 soat oldin xabar bering""",
     },
     'ru': {
@@ -393,12 +393,12 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         else:
             keyboard = [
-                [InlineKeyboardButton("📝 Uchrashuv belgilash", callback_data='boshlash')],
+                [InlineKeyboardButton("📝 Qabulga yozilish", callback_data='boshlash')],
                 [
                     InlineKeyboardButton("📞 Bog'lanish", callback_data='aloqa'),
                     InlineKeyboardButton("❓ FAQ", callback_data='savol')
                 ],
-                [InlineKeyboardButton("📋 Mening uchrashuvlarim", callback_data='my_appointments')]
+                [InlineKeyboardButton("📋 Mening qabullarim", callback_data='my_appointments')]
             ]
             await query.edit_message_text(
                 get_text(context.user_data, 'start_user'),
@@ -413,14 +413,14 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
         bugun = datetime.now().strftime("%d.%m.%Y")
         bugungi = sum(1 for q in qabullar.values() if q.get('sana') == bugun)
         
-        stat = f"""📊 **Klinika Statistikasi**
+        stat = f"""📊 Klinika Statistikasi
 
-👥 **Bemorlar:** {bemorlar_soni} ta
-📝 **Uchrashuv:** {qabullar_soni} ta
-📅 **Bugun:** {bugungi} ta
+👥 Bemorlar: {bemorlar_soni} ta
+📝 Qabullar: {qabullar_soni} ta
+📅 Bugun: {bugungi} ta
 
-📈 **Oxirgi 7 kun:**
-• Uchrashuv: {qabullar_soni} ta
+📈 Oxirgi 7 kun:
+• Qabullar: {qabullar_soni} ta
 • Yangi bemorlar: {bemorlar_soni} ta"""
         
         keyboard = [[InlineKeyboardButton("◀️ Orqaga", callback_data='admin_back')]]
@@ -432,12 +432,12 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
         bugungi_list = [q for q in qabullar.values() if q.get('sana') == bugun_str]
         
         if not bugungi_list:
-            text = f"📅 **{bugun_str}**\n\n✨ Bugun uchun uchrashuv yo'q."
+            text = f"📅 {bugun_str}\n\n✨ Bugun uchun qabullar yo'q."
         else:
-            text = f"📅 **{bugun_str} - Uchrashuv jadvali**\n\n"
+            text = f"📅 {bugun_str} - Qabul jadvali\n\n"
             bugungi_list.sort(key=lambda x: x.get('vaqt', '00:00'))
             for i, q in enumerate(bugungi_list, 1):
-                text += f"{i}. 🕐 **{q.get('vaqt')}** - {q.get('ism')} {q.get('familiya')}\n"
+                text += f"{i}. 🕐 {q.get('vaqt')} - {q.get('ism')} {q.get('familiya')}\n"
                 text += f"   📞 {q.get('telefon')}\n\n"
         
         keyboard = [[InlineKeyboardButton("◀️ Orqaga", callback_data='admin_back')]]
@@ -446,9 +446,9 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif data == 'admin_patients':
         if not bemorlar:
-            text = "👥 **Bemorlar bazasi**\n\n📭 Hali bemorlar yo'q."
+            text = "👥 Bemorlar bazasi\n\n📭 Hali bemorlar yo'q."
         else:
-            text = f"👥 **Bemorlar bazasi** ({len(bemorlar)} ta)\n\n"
+            text = f"👥 Bemorlar bazasi ({len(bemorlar)} ta)\n\n"
             for user_id_b, bemor in list(bemorlar.items())[:10]:
                 text += f"• {bemor.get('ism')} {bemor.get('familiya')}\n"
                 text += f"  📞 {bemor.get('telefon')}\n\n"
@@ -469,7 +469,7 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
         ]
         await query.edit_message_text(
-            "👨‍⚕️ **Admin Panel**",
+            "👨‍⚕️ Admin Panel",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return
@@ -492,12 +492,12 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_appointments = [q for q in qabullar.values() if q.get('user_id') == user_id]
         
         if not user_appointments:
-            text = "📋 **Mening uchrashuvlarim**\n\n📭 Hozircha uchrashuvlar yo'q."
+            text = "📋 Mening qabullarim\n\n📭 Hozircha qabullar yo'q."
         else:
-            text = f"📋 **Mening uchrashuvlarim** ({len(user_appointments)} ta)\n\n"
+            text = f"📋 Mening qabullarim ({len(user_appointments)} ta)\n\n"
             for q in user_appointments:
                 status_emoji = "✅" if q.get('holat') == 'TASDIQLANDI' else "⏳"
-                text += f"{status_emoji} **#{q.get('id')}** - {q.get('sana')} {q.get('vaqt')}\n"
+                text += f"{status_emoji} #{q.get('id')} - {q.get('sana')} {q.get('vaqt')}\n"
                 text += f"   Holat: {q.get('holat', 'KUTILMOQDA')}\n\n"
         
         keyboard = [[InlineKeyboardButton("◀️ Orqaga", callback_data='user_back')]]
@@ -505,12 +505,12 @@ async def tugma_bosildi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif data == 'user_back':
         keyboard = [
-            [InlineKeyboardButton("📝 Uchrashuv belgilash", callback_data='boshlash')],
+            [InlineKeyboardButton("📝 Qabulga yozilish", callback_data='boshlash')],
             [
                 InlineKeyboardButton("📞 Bog'lanish", callback_data='aloqa'),
                 InlineKeyboardButton("❓ FAQ", callback_data='savol')
             ],
-            [InlineKeyboardButton("📋 Mening uchrashuvlarim", callback_data='my_appointments')]
+            [InlineKeyboardButton("📋 Mening qabullarim", callback_data='my_appointments')]
         ]
         await query.edit_message_text(
             get_text(context.user_data, 'start_user'),
@@ -730,24 +730,24 @@ async def adminlarga_xabar_yuborish(context, bemor):
         print("!"*60 + "\n")
         return
     
-    xabar = f"""🔔 **YANGI UCHRASHUV SO'ROVI**
+    xabar = f"""🔔 YANGI QABUL SO'ROVI
 
-📋 **ID:** #{bemor['id']:04d}
+📋 ID: #{bemor['id']:04d}
 
-👤 **Bemor:**
+👤 Bemor:
 ━━━━━━━━━━━━━━
 • Ism: {bemor['ism']} {bemor['familiya']}
 • Yosh: {bemor['yosh']}
 • Tel: {bemor['telefon']}
 • Manzil: {bemor['manzil']}
 
-🩺 **Shikoyat:**
+🩺 Shikoyat:
 {bemor['shikoyat']}
 
-📅 **So'ralgan vaqt:**
+📅 So'ralgan vaqt:
 {bemor['sana']}, {bemor['vaqt']}
 
-⏰ **Yaratildi:** {bemor['yaratilgan'][:16]}
+⏰ Yaratildi: {bemor['yaratilgan'][:16]}
 ━━━━━━━━━━━━━━
 
 ✅ Bemor bilan bog'laning!"""
@@ -773,8 +773,7 @@ async def adminlarga_xabar_yuborish(context, bemor):
             await context.bot.send_message(
                 chat_id=admin_id,
                 text=xabar,
-                reply_markup=reply_markup,
-                parse_mode='Markdown'
+                reply_markup=reply_markup
             )
             success_count += 1
             logger.info(f"✅ Admin {admin_id}ga MUVAFFAQIYATLI yuborildi!")
@@ -790,18 +789,18 @@ async def favqulodda_adminlarga(context, bemor_data):
     """✅ FIXED: Favqulodda xabar"""
     logger.info("🚨 FAVQULODDA XABAR yuborilmoqda...")
     
-    xabar = f"""🚨🚨🚨 **FAVQULODDA! SHOSHILINCH!** 🚨🚨🚨
+    xabar = f"""🚨🚨🚨 FAVQULODDA! SHOSHILINCH! 🚨🚨🚨
 
-‼️ **ZUDLIK BILAN CHORALAR KO'RING!**
+‼️ ZUDLIK BILAN CHORALAR KO'RING!
 
-👤 **Bemor:**
+👤 Bemor:
 ━━━━━━━━━━━━━━
 • Ism: {bemor_data.get('ism', 'N/A')} {bemor_data.get('familiya', '')}
 • Yosh: {bemor_data.get('yosh', 'N/A')}
 • Tel: {bemor_data.get('telefon', 'N/A')}
 • Manzil: {bemor_data.get('manzil', 'N/A')}
 
-🆘 **FAVQULODDA SHIKOYAT:**
+🆘 FAVQULODDA SHIKOYAT:
 {bemor_data.get('shikoyat', 'N/A')}
 
 ━━━━━━━━━━━━━━
@@ -818,8 +817,7 @@ async def favqulodda_adminlarga(context, bemor_data):
             await context.bot.send_message(
                 chat_id=admin_id,
                 text=xabar,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='Markdown'
+                reply_markup=InlineKeyboardMarkup(keyboard)
             )
             logger.info(f"🚨 Favqulodda xabar yuborildi: Admin {admin_id}")
         except Exception as e:
@@ -850,7 +848,7 @@ async def admin_qabul_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         
         try:
-            await context.bot.send_message(chat_id=bemor['user_id'], text=tasdiq, parse_mode='Markdown')
+            await context.bot.send_message(chat_id=bemor['user_id'], text=tasdiq)
             
             # Lokatsiya (o'zingizning lokatsiyangizni qo'ying)
             await context.bot.send_location(
@@ -860,7 +858,7 @@ async def admin_qabul_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             )
             
             await query.edit_message_text(
-                f"✅ **TASDIQLANDI!**\n\nBemor: {bemor['ism']} {bemor['familiya']}\n"
+                f"✅ TASDIQLANDI!\n\nBemor: {bemor['ism']} {bemor['familiya']}\n"
                 f"Vaqt: {bemor['sana']} {bemor['vaqt']}\n\n"
                 f"📍 Bemorga lokatsiya yuborildi."
             )
@@ -878,12 +876,12 @@ async def admin_qabul_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         )
         
         try:
-            await context.bot.send_message(chat_id=bemor['user_id'], text=bekor, parse_mode='Markdown')
+            await context.bot.send_message(chat_id=bemor['user_id'], text=bekor)
         except:
             pass
         
         await query.edit_message_text(
-            f"❌ **RAD ETILDI**\n\nBemor: {bemor['ism']} {bemor['familiya']}"
+            f"❌ RAD ETILDI\n\nBemor: {bemor['ism']} {bemor['familiya']}"
         )
         bemor['holat'] = 'BEKOR_QILINDI'
 
